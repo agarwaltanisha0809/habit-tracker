@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Daily Habits</title>
+<link rel="stylesheet" href="styles.css" />
+<link rel="manifest" href="manifest.json" />
+<link rel="apple-touch-icon" href="icon.svg" />
+<meta name="theme-color" content="#faf7f2" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="Habits" />
+</head>
+<body>
+  <canvas id="confettiCanvas" class="confetti-canvas"></canvas>
+
+  <div class="app">
+    <div class="top-bar">
+      <div class="view-tabs">
+        <button id="viewToday" class="view-tab active">Today</button>
+        <button id="viewInsights" class="view-tab">Insights</button>
+      </div>
+      <div class="top-bar-actions">
+        <button id="settingsToggle" class="theme-toggle" aria-label="Settings">⚙️</button>
+        <button id="themeToggle" class="theme-toggle" aria-label="Toggle dark mode">🌙</button>
+      </div>
+    </div>
+
+    <section id="todayView">
+      <header class="app-header">
+        <div class="date" id="todayLabel"></div>
+        <div class="progress-wrap">
+          <svg class="progress-ring" width="120" height="120" viewBox="0 0 120 120">
+            <circle class="progress-ring__bg" cx="60" cy="60" r="52" />
+            <circle class="progress-ring__fg" id="progressRing" cx="60" cy="60" r="52" />
+          </svg>
+          <div class="progress-label">
+            <span id="progressCount">0</span><span class="progress-total">/5</span>
+          </div>
+        </div>
+        <div class="progress-caption" id="progressCaption">Let's get started</div>
+      </header>
+
+      <main class="habit-list" id="habitList"></main>
+    </section>
+
+    <section id="insightsView" hidden>
+      <h2 class="section-title">Last 30 days</h2>
+      <div class="heatmap-card">
+        <div class="heat-grid" id="heatmapGrid"></div>
+        <div class="heat-legend">
+          <span>Less</span>
+          <span class="heat-cell" data-level="0"></span>
+          <span class="heat-cell" data-level="1"></span>
+          <span class="heat-cell" data-level="2"></span>
+          <span class="heat-cell" data-level="3"></span>
+          <span class="heat-cell" data-level="4"></span>
+          <span class="heat-cell" data-level="5"></span>
+          <span>More</span>
+        </div>
+        <div class="weekly-hint">Tap a day to edit it</div>
+      </div>
+
+      <h2 class="section-title">Habit stats</h2>
+      <div class="stats-grid" id="statsGrid"></div>
+
+      <h2 class="section-title">Last 7 days</h2>
+      <div class="weekly-card" id="weeklyTable"></div>
+    </section>
+
+    <footer class="app-footer">
+      <span>Resets automatically at midnight 🌙</span>
+    </footer>
+  </div>
+
+  <!-- Day editor modal -->
+  <div id="dayModal" class="modal-overlay" hidden>
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="dayModalTitle">Edit day</h3>
+        <button id="dayModalClose" class="modal-close" aria-label="Close">✕</button>
+      </div>
+      <div id="dayModalBody" class="modal-body"></div>
+    </div>
+  </div>
+
+  <!-- Settings panel: add habits + reminders -->
+  <div id="settingsPanel" class="modal-overlay" hidden>
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Settings</h3>
+        <button id="settingsClose" class="modal-close" aria-label="Close">✕</button>
+      </div>
+      <div class="modal-body">
+        <h4 class="settings-subtitle">Daily reminder</h4>
+        <div class="reminder-row">
+          <label class="switch">
+            <input type="checkbox" id="reminderToggle" />
+            <span class="switch-track"></span>
+          </label>
+          <span>Notify me at</span>
+          <input type="time" id="reminderTime" class="time-input" value="21:00" />
+        </div>
+        <p class="settings-hint">Only fires while this tab/app is open.</p>
+
+        <h4 class="settings-subtitle">Sync across devices</h4>
+        <div id="syncSection"></div>
+        <p class="settings-hint">Generate a code on one device, then enter it on the other.</p>
+
+        <h4 class="settings-subtitle">Your habits</h4>
+        <div id="customHabitsList"></div>
+
+        <h4 class="settings-subtitle">Add a habit</h4>
+        <form id="addHabitForm" class="add-habit-form">
+          <div class="add-habit-row">
+            <input type="text" id="newHabitEmoji" maxlength="2" placeholder="🙂" class="emoji-input" />
+            <input type="text" id="newHabitLabel" placeholder="Habit name" required class="label-input" />
+          </div>
+          <select id="newHabitType" class="type-select">
+            <option value="check">Yes / no</option>
+            <option value="counter">Counter (e.g. glasses, pages)</option>
+          </select>
+          <div id="newHabitTargetField" hidden class="target-field">
+            <label for="newHabitTarget">Target count</label>
+            <input type="number" id="newHabitTarget" min="1" value="1" />
+          </div>
+          <button type="submit" class="add-habit-submit">+ Add habit</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="habits.js"></script>
+  <script src="storage.js"></script>
+  <script src="theme.js"></script>
+  <script src="confetti.js"></script>
+  <script src="insights.js"></script>
+  <script src="dayEditor.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="sync.js"></script>
+  <script src="settings.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
