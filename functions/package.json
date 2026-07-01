@@ -1,0 +1,12 @@
+{
+  "name": "habit-tracker-functions",
+  "description": "Scheduled reminder push notifications for the Habits app",
+  "engines": { "node": "20" },
+  "main": "index.js",
+  "dependencies": {
+    "firebase-admin": "^12.1.0",
+    "firebase-functions": "^5.0.0",
+    "web-push": "^3.6.7"
+  },
+  "private": true
+}

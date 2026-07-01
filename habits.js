@@ -1,52 +1,74 @@
-// Built-in habit definitions. Habits added in-app are stored separately in
-// localStorage (see storage.js: addHabit/getHabits) and merged with this list.
-// type: "check" (simple done/not-done) or "counter" (incremental, e.g. glasses of water)
-const BASE_HABITS = [
-  {
-    id: "read",
-    emoji: "📖",
-    label: "Read",
-    sublabel: "even 1 page",
-    type: "check",
-    color: "#c8924f",
-  },
-  {
-    id: "skincare",
-    emoji: "🌙",
-    label: "Skincare + brush",
-    sublabel: "night routine",
-    type: "check",
-    color: "#9c7fc9",
-  },
-  {
-    id: "water",
-    emoji: "💧",
-    label: "Drink water",
-    sublabel: "3L goal",
-    type: "counter",
-    unit: "glass",
-    unitMl: 250,
-    target: 12, // 12 x 250ml = 3L — the display goal
-    completionThreshold: 8, // but counts as "done" for streaks/progress at 2L
-    color: "#3f9bb0",
-  },
-  {
-    id: "news",
-    emoji: "📰",
-    label: "Read the news",
-    sublabel: "stay in the loop",
-    type: "check",
-    color: "#d97847",
-  },
-  {
-    id: "podcast",
-    emoji: "🎧",
-    label: "Listen to a podcast",
-    sublabel: "learn something",
-    type: "check",
-    color: "#c25777",
-  },
+// Habit/task definitions live entirely in localStorage now (see storage.js:
+// addHabit/getHabits) — the app starts with zero pre-seeded habits. This file
+// only holds shared constants and schedule helpers used across the app.
+
+// Named color themes assigned to habits as they're created (rotated through
+// in order). Each habit stores the theme *key*, not raw hex, so cards can
+// look up { accent, bg, text, muted, badgeBg } and stay consistent everywhere.
+const COLOR_THEMES = {
+  teal: { accent: "#5DCAA5", bg: "#04342C", text: "#E1F5EE", muted: "#9FE1CB", badgeBg: "#085041" },
+  blue: { accent: "#378ADD", bg: "#042C53", text: "#E6F1FB", muted: "#B5D4F4", badgeBg: "#0C447C" },
+  purple: { accent: "#7F77DD", bg: "#26215C", text: "#EEEDFE", muted: "#CECBF6", badgeBg: "#3C3489" },
+  coral: { accent: "#D85A30", bg: "#4A1B0C", text: "#FAECE7", muted: "#F5C4B3", badgeBg: "#712B13" },
+  pink: { accent: "#D4537E", bg: "#4B1528", text: "#FBEAF0", muted: "#F4C0D1", badgeBg: "#72243E" },
+  amber: { accent: "#EF9F27", bg: "#412402", text: "#FAEEDA", muted: "#FAC775", badgeBg: "#633806" },
+  green: { accent: "#639922", bg: "#173404", text: "#EAF3DE", muted: "#C0DD97", badgeBg: "#27500A" },
+  red: { accent: "#E24B4A", bg: "#501313", text: "#FCEBEB", muted: "#F7C1C1", badgeBg: "#791F1F" },
+};
+// Light-mode uses the inverse formula: pale tint background, saturated text.
+const LIGHT_COLOR_THEMES = {
+  teal: { accent: "#0F6E56", bg: "#E1F5EE", text: "#04342C", muted: "#0F6E56", badgeBg: "#9FE1CB" },
+  blue: { accent: "#185FA5", bg: "#E6F1FB", text: "#042C53", muted: "#185FA5", badgeBg: "#B5D4F4" },
+  purple: { accent: "#534AB7", bg: "#EEEDFE", text: "#26215C", muted: "#534AB7", badgeBg: "#CECBF6" },
+  coral: { accent: "#993C1D", bg: "#FAECE7", text: "#4A1B0C", muted: "#993C1D", badgeBg: "#F5C4B3" },
+  pink: { accent: "#993556", bg: "#FBEAF0", text: "#4B1528", muted: "#993556", badgeBg: "#F4C0D1" },
+  amber: { accent: "#854F0B", bg: "#FAEEDA", text: "#412402", muted: "#854F0B", badgeBg: "#FAC775" },
+  green: { accent: "#3B6D11", bg: "#EAF3DE", text: "#173404", muted: "#3B6D11", badgeBg: "#C0DD97" },
+  red: { accent: "#A32D2D", bg: "#FCEBEB", text: "#501313", muted: "#A32D2D", badgeBg: "#F7C1C1" },
+};
+const COLOR_THEME_KEYS = Object.keys(COLOR_THEMES);
+
+function isLightMode() {
+  return document.documentElement.getAttribute("data-theme") === "light";
+}
+
+function themeFor(habit) {
+  const table = isLightMode() ? LIGHT_COLOR_THEMES : COLOR_THEMES;
+  return table[habit.color] || table.teal;
+}
+
+// A curated emoji set for the habit picker, grouped loosely by theme.
+const EMOJI_CHOICES = [
+  "📖", "✍️", "🎨", "🎧", "🎵", "🧠", "💡", "🗣️",
+  "💧", "🍎", "🥗", "☕", "🚭", "🍽️", "🧴", "🪥",
+  "🏃", "🏋️", "🧘", "🚴", "🥾", "🤸", "⛹️", "🚶",
+  "😴", "🌙", "☀️", "🧹", "💰", "📚", "💻", "📞",
+  "🌿", "🐾", "❤️", "🙏", "🎯", "✅", "⭐", "🔥",
 ];
 
-// Rotation of colors assigned to habits the user adds themselves.
-const CUSTOM_HABIT_COLORS = ["#5a9b6b", "#5d83c4", "#bb6fae", "#c4934a", "#4fa898", "#a06bd1"];
+// Schedule kinds: "daily", "weekdays", "weekends", "custom" (specific
+// weekdays via schedule.days, 0=Sun..6=Sat like Date.getDay()), or "once"
+// (schedule.date is a single "YYYY-MM-DD").
+function isScheduledForDate(habit, dateStr) {
+  const schedule = habit.schedule || { kind: "daily" };
+  if (schedule.kind === "once") return schedule.date === dateStr;
+  const day = new Date(dateStr + "T00:00:00").getDay();
+  if (schedule.kind === "daily") return true;
+  if (schedule.kind === "weekdays") return day >= 1 && day <= 5;
+  if (schedule.kind === "weekends") return day === 0 || day === 6;
+  if (schedule.kind === "custom") return (schedule.days || []).includes(day);
+  return true;
+}
+
+function scheduleLabel(schedule) {
+  if (!schedule) return "daily";
+  if (schedule.kind === "daily") return "daily";
+  if (schedule.kind === "weekdays") return "weekdays";
+  if (schedule.kind === "weekends") return "weekends";
+  if (schedule.kind === "once") return "just for today";
+  if (schedule.kind === "custom") {
+    const names = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    return (schedule.days || []).map((d) => names[d]).join(", ");
+  }
+  return "daily";
+}

@@ -1,12 +1,12 @@
 {
-  "name": "Daily Habits",
+  "name": "Habits",
   "short_name": "Habits",
-  "description": "A calm daily habit tracker",
+  "description": "A calendar-based habit and task tracker",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#faf7f2",
-  "theme_color": "#faf7f2",
+  "background_color": "#0a0a0a",
+  "theme_color": "#0a0a0a",
   "icons": [
     {
       "src": "icon.svg",

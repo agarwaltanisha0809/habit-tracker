@@ -1,61 +1,108 @@
-// Rendering + interaction layer.
-const RING_RADIUS = 52;
-const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
+// Core rendering: opening screen, the Today (calendar) screen, tab
+// switching, confetti triggers, and the midnight rollover timer.
 
-const habitListEl = document.getElementById("habitList");
-const progressRingEl = document.getElementById("progressRing");
-const progressCountEl = document.getElementById("progressCount");
-const progressCaptionEl = document.getElementById("progressCaption");
-const todayLabelEl = document.getElementById("todayLabel");
+let selectedDate = null; // the date currently shown on the Today screen
+let lastRenderedCount = -1;
+let userHasInteracted = false; // confetti should only fire from a real toggle, never on load
+let currentTab = "today";
 
-progressRingEl.style.strokeDasharray = `${RING_CIRCUMFERENCE} ${RING_CIRCUMFERENCE}`;
+// --- Opening screen ---
 
-function renderTodayLabel() {
-  const opts = { weekday: "long", month: "long", day: "numeric" };
-  todayLabelEl.textContent = new Date().toLocaleDateString(undefined, opts);
+function greetingForNow() {
+  const hour = new Date().getHours();
+  if (hour < 5) return "Still up";
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  if (hour < 21) return "Good evening";
+  return "Good night";
 }
 
-function captionFor(count, total) {
-  if (count === 0) return "Let's get started";
-  if (count === total) return "All done — amazing! ✨";
-  if (count >= total - 1) return "Almost there!";
-  return "Nice progress";
+function getUserName() {
+  return localStorage.getItem("habitTracker.userName") || "";
 }
 
-// Red -> yellow -> green as the day fills up.
-function ringColorFor(fraction) {
-  if (fraction >= 1) return "#4f8f3a";
-  if (fraction >= 0.66) return "#7fae77";
-  if (fraction >= 0.33) return "#e0a83e";
-  if (fraction > 0) return "#d9714e";
-  return "var(--ring-bg)";
-}
+function renderOpeningScreen() {
+  const state = getState();
+  const name = getUserName();
+  const greeting = greetingForNow() + (name ? `, ${name}` : "");
 
-function updateProgress(state) {
-  const habits = getHabits();
-  const completedCount = habits.reduce(
-    (acc, h) => acc + (isCompleted(h, state.entries[h.id]) ? 1 : 0),
+  const daysMap = getAllDaysMap(state);
+  const bestStreak = ALL_HABITS.filter((h) => h.type !== "sleep").reduce(
+    (max, h) => Math.max(max, computeCurrentStreak(h, daysMap, state.date)),
     0
   );
-  const fraction = completedCount / habits.length;
-  const offset = RING_CIRCUMFERENCE * (1 - fraction);
-  progressRingEl.style.strokeDashoffset = offset;
-  progressRingEl.style.stroke = ringColorFor(fraction);
-  progressCountEl.textContent = completedCount;
-  document.querySelector(".progress-total").textContent = `/${habits.length}`;
-  progressCaptionEl.textContent = captionFor(completedCount, habits.length);
+
+  document.getElementById("openingGreeting").textContent = greeting;
+  document.getElementById("openingScribble").innerHTML = scribbleSvg(150);
+  document.getElementById("openingRing").innerHTML = ringSvg(96, 6, 0.68, "#3c3489", "#afa9ec");
+
+  const chipsEl = document.getElementById("openingChips");
+  if (bestStreak > 0) {
+    chipsEl.innerHTML = `<span class="opening-chip" style="background:#04342c; color:#9fe1cb;">${bestStreak} day streak</span>`;
+  } else {
+    chipsEl.innerHTML = `<span class="opening-chip" style="background:#141310; color:#8c8579;">Let's begin</span>`;
+  }
 }
 
-function streakBadge(streak) {
-  if (streak <= 0) return "";
-  return `<span class="streak">🔥 ${streak} day${streak === 1 ? "" : "s"}</span>`;
+function initOpeningScreen() {
+  renderOpeningScreen();
+  const opening = document.getElementById("openingScreen");
+  const main = document.getElementById("mainApp");
+  function proceed() {
+    opening.hidden = true;
+    main.hidden = false;
+    document.getElementById("bottomNav").hidden = false;
+  }
+  document.getElementById("openingContinue").addEventListener("click", proceed);
+  setTimeout(proceed, 1600);
 }
 
-function noteField(habit, entry) {
+// --- Today / calendar screen ---
+
+function startOfWeek(dateStr) {
+  const d = new Date(dateStr + "T00:00:00");
+  const day = d.getDay(); // 0=Sun..6=Sat
+  const diff = day === 0 ? -6 : 1 - day; // shift to Monday
+  d.setDate(d.getDate() + diff);
+  return formatDate(d);
+}
+
+function renderWeekStrip() {
+  const el = document.getElementById("weekStrip");
+  if (!el) return;
+  const state = getState();
+  const monday = startOfWeek(selectedDate);
+  const labels = [];
+  for (let i = 0; i < 7; i++) {
+    const date = addDays(monday, i);
+    const isToday = date === state.date;
+    const isSelected = date === selectedDate;
+    const num = new Date(date + "T00:00:00").getDate();
+    const letter = weekdayLetter(date);
+    labels.push(`
+      <button type="button" class="week-day${isToday ? " today" : ""}${isSelected ? " selected" : ""}" data-date="${date}">
+        <span class="week-day-label">${letter}</span>
+        <span class="week-day-num-wrap">
+          ${isSelected ? wobbleCircleSvg(32, "var(--accent)") : ""}
+          <span class="week-day-num">${num}</span>
+        </span>
+      </button>
+    `);
+  }
+  el.innerHTML = labels.join("");
+  el.querySelectorAll(".week-day").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      selectedDate = btn.dataset.date;
+      renderToday();
+    });
+  });
+}
+
+function noteField(habit, entry, date) {
   return `
     <input
       type="text"
-      class="note-input"
+      class="task-note-input"
       data-habit="${habit.id}"
       placeholder="Add a note (optional)"
       value="${(entry.note || "").replace(/"/g, "&quot;")}"
@@ -64,87 +111,91 @@ function noteField(habit, entry) {
   `;
 }
 
-function bindNoteInput(card, habit) {
-  const input = card.querySelector(".note-input");
+function bindNoteInput(card, habit, date) {
+  const input = card.querySelector(".task-note-input");
   let debounceTimer;
   input.addEventListener("input", (e) => {
     clearTimeout(debounceTimer);
     const value = e.target.value;
     debounceTimer = setTimeout(() => {
-      setNote(habit.id, value);
+      setEntryForDate(date, habit.id, { note: value });
     }, 400);
   });
 }
 
-function currentStreakFor(habit, state) {
-  return computeCurrentStreak(habit, getAllDaysMap(state), state.date);
+function applyTone(el, habit) {
+  const t = themeFor(habit);
+  el.style.setProperty("--tone-bg", t.bg);
+  el.style.setProperty("--tone-text", t.text);
+  el.style.setProperty("--tone-muted", t.muted);
+  el.style.setProperty("--tone-accent", t.accent);
+  el.style.setProperty("--tone-badge-bg", t.badgeBg);
 }
 
-function renderCheckHabit(habit, state) {
-  const entry = state.entries[habit.id];
+function renderCheckCard(habit, entry, date) {
   const done = isCompleted(habit, entry);
   const card = document.createElement("div");
-  card.className = `habit-card${done ? " done" : ""}`;
-  card.style.setProperty("--habit-color", habit.color || "var(--accent-strong)");
+  card.className = `bento-card task-card${habit.schedule.kind === "once" ? " once" : ""}`;
+  applyTone(card, habit);
   card.innerHTML = `
-    <button class="checkbox" aria-label="Toggle ${habit.label}" data-habit="${habit.id}">
-      <span class="checkbox-inner">${done ? "✓" : ""}</span>
+    <button class="task-checkbox${done ? " done" : ""}" aria-label="Toggle ${habit.label}" data-habit="${habit.id}">
+      ${done ? "✓" : ""}
     </button>
-    <div class="habit-info">
-      <div class="habit-title">${habit.emoji} ${habit.label}</div>
-      <div class="habit-sub">${habit.sublabel}</div>
-      ${noteField(habit, entry)}
+    <div class="task-info">
+      <div class="task-title${done ? " done" : ""}">${habit.emoji} ${habit.label}</div>
+      <div class="task-sub">${scheduleLabel(habit.schedule)}</div>
+      ${noteField(habit, entry, date)}
     </div>
-    ${streakBadge(currentStreakFor(habit, state))}
   `;
-  card.querySelector(".checkbox").addEventListener("click", (e) => {
+  card.querySelector(".task-checkbox").addEventListener("click", (e) => {
     userHasInteracted = true;
-    const newState = setCheckDone(habit.id, !done);
+    setEntryForDate(date, habit.id, { done: !done });
     burstAnimation(e.currentTarget, !done);
-    render(newState);
+    renderToday();
   });
-  bindNoteInput(card, habit);
+  bindNoteInput(card, habit, date);
   return card;
 }
 
-function renderCounterHabit(habit, state) {
-  const entry = state.entries[habit.id];
+function renderCounterCard(habit, entry, date) {
   const count = entry.count || 0;
   const done = isCompleted(habit, entry);
-  const litres = ((count * habit.unitMl) / 1000).toFixed(2);
-  const goalLitres = (habit.target * habit.unitMl) / 1000;
+  const litres = habit.unitMl ? ((count * habit.unitMl) / 1000).toFixed(2) : null;
+  const goalLitres = habit.unitMl ? ((habit.target * habit.unitMl) / 1000).toFixed(1) : null;
+  const t = themeFor(habit);
+  const fraction = habit.target ? count / habit.target : 0;
+
   const card = document.createElement("div");
-  card.className = `habit-card counter-card${done ? " done" : ""}`;
-  card.style.setProperty("--habit-color", habit.color || "var(--water)");
+  card.className = "bento-card task-card counter-card";
+  applyTone(card, habit);
+
+  const isWater = !!habit.unitMl;
   card.innerHTML = `
-    <div class="habit-info wide">
-      <div class="habit-title">${habit.emoji} ${habit.label}</div>
-      <div class="habit-sub">${litres}L of ${goalLitres}L${done ? " · goal hit 🎉" : ""}</div>
-      <div class="glass-track">
-        ${Array.from({ length: habit.target })
-          .map((_, i) => `<span class="glass${i < count ? " filled" : ""}"></span>`)
-          .join("")}
+    <div class="counter-row">
+      ${isWater ? glassSvg(fraction, 24, 30, t.accent, t.accent) : `<div class="task-icon-badge">${habit.emoji}</div>`}
+      <div class="task-info">
+        <div class="task-title">${habit.emoji === "" ? "" : isWater ? habit.emoji + " " : ""}${habit.label}</div>
+        <div class="task-sub">${isWater ? `${litres}L of ${goalLitres}L` : `${count} of ${habit.target}`}${done ? " · goal hit" : ""}</div>
       </div>
-      ${noteField(habit, entry)}
+      <div class="counter-controls">
+        <button class="counter-btn minus" data-habit="${habit.id}" aria-label="Decrease">−</button>
+        <span class="counter-value">${count}</span>
+        <button class="counter-btn plus" data-habit="${habit.id}" aria-label="Increase">+</button>
+      </div>
     </div>
-    <div class="counter-controls">
-      <button class="counter-btn minus" data-habit="${habit.id}" aria-label="Remove a glass">−</button>
-      <span class="counter-value">${count}</span>
-      <button class="counter-btn plus" data-habit="${habit.id}" aria-label="Add a glass">+</button>
-    </div>
-    ${streakBadge(currentStreakFor(habit, state))}
+    ${noteField(habit, entry, date)}
   `;
   card.querySelector(".plus").addEventListener("click", (e) => {
     userHasInteracted = true;
-    const newState = setCounterCount(habit.id, count + 1);
+    setEntryForDate(date, habit.id, { count: count + 1 });
     burstAnimation(e.currentTarget, true);
-    render(newState);
+    renderToday();
   });
   card.querySelector(".minus").addEventListener("click", () => {
-    const newState = setCounterCount(habit.id, count - 1);
-    render(newState);
+    setEntryForDate(date, habit.id, { count: Math.max(0, count - 1) });
+    renderToday();
   });
-  bindNoteInput(card, habit);
+  bindNoteInput(card, habit, date);
   return card;
 }
 
@@ -156,66 +207,98 @@ function burstAnimation(el, justCompleted) {
   });
 }
 
-let lastRenderedCount = -1;
-let userHasInteracted = false; // confetti should only fire from an actual toggle, never on page load
-
-function render(state) {
-  const habits = getHabits();
-  habitListEl.innerHTML = "";
-  habits.forEach((habit) => {
-    const card =
-      habit.type === "counter" ? renderCounterHabit(habit, state) : renderCheckHabit(habit, state);
-    habitListEl.appendChild(card);
-  });
-  updateProgress(state);
-  renderInsights(state);
-
-  const completedCount = habits.reduce(
-    (acc, h) => acc + (isCompleted(h, state.entries[h.id]) ? 1 : 0),
-    0
-  );
-  if (userHasInteracted && completedCount === habits.length && lastRenderedCount < habits.length) {
-    launchConfetti();
-  }
-  lastRenderedCount = completedCount;
+function updateMiniRing(date, tasks, entries) {
+  const el = document.getElementById("miniRing");
+  if (!el) return;
+  const completed = tasks.reduce((acc, h) => acc + (isCompleted(h, entries[h.id]) ? 1 : 0), 0);
+  const fraction = tasks.length ? completed / tasks.length : 0;
+  el.querySelector(".mini-ring-svg").innerHTML = ringSvg(34, 4, fraction, "var(--ring-bg)", "var(--accent)");
+  el.querySelector(".mini-ring-label").textContent = `${completed}/${tasks.length}`;
 }
 
-// Exposed so dayEditor.js / settings.js can refresh the Today view + insights after an edit.
+function renderToday() {
+  const state = getState();
+  const dateLabel = document.getElementById("todayLabel");
+  const opts = { weekday: "long", month: "long", day: "numeric" };
+  const isToday = selectedDate === state.date;
+  dateLabel.textContent =
+    new Date(selectedDate + "T00:00:00").toLocaleDateString(undefined, opts) + (isToday ? "" : "");
+  document.getElementById("todayScribble").innerHTML = scribbleSvg(120);
+
+  renderWeekStrip();
+
+  const tasks = getTasksForDate(selectedDate).filter((h) => h.type !== "sleep");
+  const entries = getEntriesForDate(state, selectedDate) || {};
+  tasks.forEach((h) => {
+    if (!(h.id in entries)) entries[h.id] = defaultEntry(h);
+  });
+
+  updateMiniRing(selectedDate, tasks, entries);
+
+  const listEl = document.getElementById("taskList");
+  listEl.innerHTML = "";
+  if (!tasks.length) {
+    listEl.innerHTML = `<div class="app-footer" style="margin-top:24px;">Nothing scheduled for this day yet. Tap + to add a habit or task.</div>`;
+  } else {
+    tasks.forEach((habit) => {
+      const entry = entries[habit.id];
+      const card = habit.type === "counter" ? renderCounterCard(habit, entry, selectedDate) : renderCheckCard(habit, entry, selectedDate);
+      listEl.appendChild(card);
+    });
+  }
+
+  if (isToday) {
+    const completedCount = tasks.reduce((acc, h) => acc + (isCompleted(h, entries[h.id]) ? 1 : 0), 0);
+    if (userHasInteracted && tasks.length > 0 && completedCount === tasks.length && lastRenderedCount < tasks.length) {
+      launchConfetti();
+    }
+    lastRenderedCount = completedCount;
+  }
+}
+
+// --- Tab switching ---
+
+function showTab(tab) {
+  currentTab = tab;
+  ["today", "tracker", "sleep", "insights"].forEach((t) => {
+    const section = document.getElementById("view-" + t);
+    if (section) section.hidden = t !== tab;
+    const navBtn = document.querySelector(`.bottom-nav-btn[data-tab="${t}"]`);
+    if (navBtn) navBtn.classList.toggle("active", t === tab);
+  });
+  if (tab === "today") renderToday();
+  if (tab === "tracker" && typeof renderTrackerTab === "function") renderTrackerTab();
+  if (tab === "sleep" && typeof renderSleepTab === "function") renderSleepTab();
+  if (tab === "insights" && typeof renderInsightsTab === "function") renderInsightsTab();
+}
+
+function initBottomNav() {
+  document.querySelectorAll(".bottom-nav-btn").forEach((btn) => {
+    btn.addEventListener("click", () => showTab(btn.dataset.tab));
+  });
+}
+
+function initAddTaskButton() {
+  document.getElementById("addTaskBtn").addEventListener("click", () => openAddTaskModal());
+}
+
+// Called by dayEditor.js / addTask.js / settings.js after they mutate state.
 function refreshApp() {
-  render(getState());
+  showTab(currentTab);
 }
 
 function scheduleMidnightReset() {
   const now = new Date();
   const nextMidnight = new Date(now);
-  nextMidnight.setHours(24, 0, 5, 0); // a few seconds past midnight
+  nextMidnight.setHours(24, 0, 5, 0);
   const msUntilMidnight = nextMidnight - now;
   setTimeout(() => {
     lastRenderedCount = -1;
     userHasInteracted = false;
-    render(getState());
-    renderTodayLabel();
+    selectedDate = getState().date;
+    refreshApp();
     scheduleMidnightReset();
   }, msUntilMidnight);
-}
-
-function initViewToggle() {
-  const todayBtn = document.getElementById("viewToday");
-  const insightsBtn = document.getElementById("viewInsights");
-  const todayView = document.getElementById("todayView");
-  const insightsView = document.getElementById("insightsView");
-  if (!todayBtn || !insightsBtn) return;
-
-  function showView(view) {
-    const showInsights = view === "insights";
-    todayView.hidden = showInsights;
-    insightsView.hidden = !showInsights;
-    todayBtn.classList.toggle("active", !showInsights);
-    insightsBtn.classList.toggle("active", showInsights);
-  }
-
-  todayBtn.addEventListener("click", () => showView("today"));
-  insightsBtn.addEventListener("click", () => showView("insights"));
 }
 
 function initServiceWorker() {
@@ -226,12 +309,18 @@ function initServiceWorker() {
   }
 }
 
+// --- Init ---
+
 initTheme();
-initViewToggle();
-initServiceWorker();
+const initialState = getState();
+selectedDate = initialState.date;
+initOpeningScreen();
+initBottomNav();
+initAddTaskButton();
 initDayEditor();
+initAddTask();
 initSettingsPanel();
-if (typeof initSyncOnLoad === "function") initSyncOnLoad();
-renderTodayLabel();
-render(getState());
+initInsightsNav();
+initServiceWorker();
+showTab("today");
 scheduleMidnightReset();

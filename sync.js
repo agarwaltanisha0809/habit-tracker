@@ -63,7 +63,7 @@ function startSync(code) {
     .onSnapshot((doc) => {
       if (!doc.exists) return;
       const data = doc.data();
-      mergeRemoteHabits(data.customHabits, data.updatedAt);
+      mergeRemoteHabits(data.habits, data.updatedAt);
     });
 
   syncUnsubscribes = [unsubDays, unsubHabits];
@@ -85,21 +85,23 @@ function mergeRemoteDay(date, entries, updatedAt) {
   if (typeof refreshApp === "function") refreshApp();
 }
 
-function mergeRemoteHabits(customHabits, updatedAt) {
+function mergeRemoteHabits(habits, updatedAt) {
   if (!updatedAt) return;
   const state = getState();
   const localUpdatedAt = state.meta.updatedAt.__habits__ || 0;
   if (updatedAt <= localUpdatedAt) return;
 
-  state.customHabits = customHabits || [];
+  state.habits = habits || [];
   state.meta.updatedAt.__habits__ = updatedAt;
-  ALL_HABITS = BASE_HABITS.concat(state.customHabits);
+  ALL_HABITS = state.habits;
   ALL_HABITS.forEach((h) => {
-    if (!(h.id in state.entries)) state.entries[h.id] = defaultEntry(h);
+    if (isScheduledForDate(h, state.date) && !(h.id in state.entries)) {
+      state.entries[h.id] = defaultEntry(h);
+    }
   });
   saveRaw(state, { silent: true });
   if (typeof refreshApp === "function") refreshApp();
-  if (typeof renderCustomHabitsList === "function") renderCustomHabitsList();
+  if (typeof renderHabitsList === "function") renderHabitsList();
 }
 
 function pushDirty(state, dates) {
@@ -109,7 +111,7 @@ function pushDirty(state, dates) {
   dates.forEach((date) => {
     if (date === "__habits__") {
       base.collection("meta").doc("habits").set({
-        customHabits: state.customHabits,
+        habits: state.habits,
         updatedAt: state.meta.updatedAt.__habits__,
       });
     } else {

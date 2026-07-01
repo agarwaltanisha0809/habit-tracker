@@ -2,76 +2,111 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<title>Daily Habits</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<title>Habits</title>
 <link rel="stylesheet" href="styles.css" />
 <link rel="manifest" href="manifest.json" />
 <link rel="apple-touch-icon" href="icon.svg" />
-<meta name="theme-color" content="#faf7f2" />
+<meta name="theme-color" content="#0a0a0a" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
-<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="Habits" />
 </head>
-<body>
+<body data-theme="dark">
   <canvas id="confettiCanvas" class="confetti-canvas"></canvas>
 
-  <div class="app">
+  <!-- Opening screen -->
+  <div id="openingScreen" class="opening-screen">
+    <div class="opening-ring" id="openingRing"></div>
+    <div class="screen-title" id="openingGreeting">Good evening</div>
+    <div id="openingScribble"></div>
+    <div class="opening-subtitle">Small steps, every day. Let's see how today went.</div>
+    <div class="opening-chips" id="openingChips"></div>
+    <button type="button" class="opening-continue" id="openingContinue">Continue</button>
+  </div>
+
+  <div class="app" id="mainApp" hidden>
     <div class="top-bar">
-      <div class="view-tabs">
-        <button id="viewToday" class="view-tab active">Today</button>
-        <button id="viewInsights" class="view-tab">Insights</button>
-      </div>
+      <div style="flex:1;"></div>
       <div class="top-bar-actions">
-        <button id="settingsToggle" class="theme-toggle" aria-label="Settings">⚙️</button>
-        <button id="themeToggle" class="theme-toggle" aria-label="Toggle dark mode">🌙</button>
+        <button id="settingsToggle" class="icon-btn" aria-label="Settings">⚙️</button>
+        <button id="themeToggle" class="icon-btn" aria-label="Toggle light mode">☀️</button>
       </div>
     </div>
 
-    <section id="todayView">
-      <header class="app-header">
-        <div class="date" id="todayLabel"></div>
-        <div class="progress-wrap">
-          <svg class="progress-ring" width="120" height="120" viewBox="0 0 120 120">
-            <circle class="progress-ring__bg" cx="60" cy="60" r="52" />
-            <circle class="progress-ring__fg" id="progressRing" cx="60" cy="60" r="52" />
-          </svg>
-          <div class="progress-label">
-            <span id="progressCount">0</span><span class="progress-total">/5</span>
-          </div>
-        </div>
-        <div class="progress-caption" id="progressCaption">Let's get started</div>
-      </header>
-
-      <main class="habit-list" id="habitList"></main>
-    </section>
-
-    <section id="insightsView" hidden>
-      <h2 class="section-title">Last 30 days</h2>
-      <div class="heatmap-card">
-        <div class="heat-grid" id="heatmapGrid"></div>
-        <div class="heat-legend">
-          <span>Less</span>
-          <span class="heat-cell" data-level="0"></span>
-          <span class="heat-cell" data-level="1"></span>
-          <span class="heat-cell" data-level="2"></span>
-          <span class="heat-cell" data-level="3"></span>
-          <span class="heat-cell" data-level="4"></span>
-          <span class="heat-cell" data-level="5"></span>
-          <span>More</span>
-        </div>
-        <div class="weekly-hint">Tap a day to edit it</div>
+    <!-- Today / calendar view -->
+    <section id="view-today">
+      <div class="screen-title-wrap">
+        <div class="screen-title" id="todayLabel">Today</div>
+        <div id="todayScribble"></div>
       </div>
 
-      <h2 class="section-title">Habit stats</h2>
-      <div class="stats-grid" id="statsGrid"></div>
+      <div class="home-header-row">
+        <div class="week-strip" id="weekStrip" style="flex:1;"></div>
+      </div>
+      <div class="home-header-row" style="margin-bottom: 14px;">
+        <button type="button" class="icon-btn" id="addTaskBtn" aria-label="Add habit or task" style="background:var(--accent); color:var(--accent-ink);">+</button>
+        <div class="mini-ring" id="miniRing">
+          <div class="mini-ring-svg"></div>
+          <div class="mini-ring-label">0/0</div>
+        </div>
+      </div>
 
-      <h2 class="section-title">Last 7 days</h2>
-      <div class="weekly-card" id="weeklyTable"></div>
+      <div class="task-list" id="taskList"></div>
     </section>
 
-    <footer class="app-footer">
-      <span>Resets automatically at midnight 🌙</span>
-    </footer>
+    <!-- Habit tracker view -->
+    <section id="view-tracker" hidden>
+      <div class="screen-title-wrap">
+        <div class="screen-title">Habit tracker</div>
+        <div id="trackerScribble"></div>
+      </div>
+      <div class="pill-switcher" id="trackerSwitcher"></div>
+      <div id="trackerContent"></div>
+      <div class="tracker-footnote" id="trackerFootnote"></div>
+    </section>
+
+    <!-- Sleep view -->
+    <section id="view-sleep" hidden>
+      <div class="screen-title-wrap">
+        <div class="screen-title">Sleep</div>
+        <div id="sleepScribble"></div>
+      </div>
+      <div class="sleep-hero" id="sleepHero"></div>
+      <div style="font-size: 11px; color: var(--muted-2); margin: 4px 0 8px;">Last 7 nights</div>
+      <div class="sleep-bubbles-card">
+        <div class="sleep-bubble-row" id="sleepBubbleRow"></div>
+      </div>
+      <div class="sleep-insight-grid" id="sleepInsights" style="display:block;"></div>
+    </section>
+
+    <!-- Insights view -->
+    <section id="view-insights" hidden>
+      <div class="screen-title-wrap">
+        <div class="screen-title">Insights</div>
+        <div id="insightsScribble"></div>
+      </div>
+      <div class="month-nav">
+        <button type="button" class="month-nav-btn" id="insightsMonthPrev">‹</button>
+        <span class="month-nav-label" id="insightsMonthLabel"></span>
+        <button type="button" class="month-nav-btn" id="insightsMonthNext">›</button>
+      </div>
+      <div class="insights-editorial" id="insightsEditorial"></div>
+      <div class="heatmap-month-card" id="insightsHeatmap"></div>
+      <div class="insights-pill-rows" id="insightsPills"></div>
+    </section>
+
+    <div class="app-footer">Resets automatically at midnight</div>
+  </div>
+
+  <!-- Bottom tab navigation -->
+  <div class="bottom-nav" id="bottomNav" hidden>
+    <div class="bottom-nav-inner">
+      <button type="button" class="bottom-nav-btn active" data-tab="today"><span>📅</span><span>Today</span></button>
+      <button type="button" class="bottom-nav-btn" data-tab="tracker"><span>📈</span><span>Tracker</span></button>
+      <button type="button" class="bottom-nav-btn" data-tab="sleep"><span>😴</span><span>Sleep</span></button>
+      <button type="button" class="bottom-nav-btn" data-tab="insights"><span>✨</span><span>Insights</span></button>
+    </div>
   </div>
 
   <!-- Day editor modal -->
@@ -79,67 +114,142 @@
     <div class="modal-card">
       <div class="modal-header">
         <h3 id="dayModalTitle">Edit day</h3>
-        <button id="dayModalClose" class="modal-close" aria-label="Close">✕</button>
+        <button id="dayModalClose" class="icon-btn" aria-label="Close">✕</button>
       </div>
-      <div id="dayModalBody" class="modal-body"></div>
+      <div id="dayModalBody"></div>
     </div>
   </div>
 
-  <!-- Settings panel: add habits + reminders -->
+  <!-- Add habit / task modal -->
+  <div id="addTaskModal" class="modal-overlay" hidden>
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Add a habit or task</h3>
+        <button id="addTaskModalClose" class="icon-btn" aria-label="Close">✕</button>
+      </div>
+      <form id="addTaskForm">
+        <div class="form-field">
+          <span class="form-label">Icon and name</span>
+          <div class="add-task-row">
+            <button type="button" class="emoji-picker-trigger" id="emojiTrigger">⭐</button>
+            <input type="text" id="newTaskLabel" class="form-input" placeholder="Habit name" required style="flex:1;" />
+          </div>
+          <div class="emoji-grid" id="emojiGrid" hidden></div>
+        </div>
+
+        <div class="form-field">
+          <span class="form-label">Type</span>
+          <select id="newTaskType" class="form-select">
+            <option value="check">Yes / no</option>
+            <option value="counter">Counter (e.g. glasses, pages)</option>
+          </select>
+        </div>
+
+        <div class="form-field" id="targetField" hidden>
+          <span class="form-label">Target count</span>
+          <input type="number" id="newTaskTarget" class="form-input" min="1" value="1" />
+          <label style="display:flex; align-items:center; gap:8px; margin-top:10px; font-size:13px; color:var(--muted);">
+            <input type="checkbox" id="newTaskIsLiquid" style="width:auto;" />
+            Show as a glass that fills up (e.g. water)
+          </label>
+          <div id="liquidField" hidden style="margin-top:8px;">
+            <span class="form-label">Amount per tap (ml)</span>
+            <input type="number" id="newTaskUnitMl" class="form-input" min="1" value="250" />
+          </div>
+        </div>
+
+        <div class="form-field">
+          <span class="form-label">Repeats</span>
+          <div class="schedule-options" id="scheduleOptions"></div>
+          <div id="weekdayPickerWrap" hidden>
+            <div class="weekday-picker" id="weekdayPicker"></div>
+          </div>
+        </div>
+
+        <button type="submit" class="submit-btn">Add</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Settings panel -->
   <div id="settingsPanel" class="modal-overlay" hidden>
     <div class="modal-card">
       <div class="modal-header">
         <h3>Settings</h3>
-        <button id="settingsClose" class="modal-close" aria-label="Close">✕</button>
+        <button id="settingsClose" class="icon-btn" aria-label="Close">✕</button>
       </div>
-      <div class="modal-body">
-        <h4 class="settings-subtitle">Daily reminder</h4>
-        <div class="reminder-row">
+
+      <div class="settings-section-label">Profile</div>
+      <div class="settings-card">
+        <div class="settings-row">
+          <div class="settings-row-label">🙂 <span>Your name</span></div>
+          <input type="text" id="userNameInput" class="settings-value-pill" placeholder="Optional" style="width:110px; text-align:right;" />
+        </div>
+      </div>
+
+      <div class="settings-section-label">Appearance</div>
+      <div class="settings-card">
+        <div class="settings-row">
+          <div class="settings-row-label">🌙 <span>Light mode</span></div>
+          <label class="switch">
+            <input type="checkbox" id="lightModeToggle" />
+            <span class="switch-track"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="settings-section-label">Notifications</div>
+      <div class="settings-card">
+        <div class="settings-row">
+          <div class="settings-row-label">🔔 <span>Notifications</span></div>
           <label class="switch">
             <input type="checkbox" id="reminderToggle" />
             <span class="switch-track"></span>
           </label>
-          <span>Notify me at</span>
-          <input type="time" id="reminderTime" class="time-input" value="21:00" />
         </div>
-        <p class="settings-hint">Only fires while this tab/app is open.</p>
-
-        <h4 class="settings-subtitle">Sync across devices</h4>
-        <div id="syncSection"></div>
-        <p class="settings-hint">Generate a code on one device, then enter it on the other.</p>
-
-        <h4 class="settings-subtitle">Your habits</h4>
-        <div id="customHabitsList"></div>
-
-        <h4 class="settings-subtitle">Add a habit</h4>
-        <form id="addHabitForm" class="add-habit-form">
-          <div class="add-habit-row">
-            <input type="text" id="newHabitEmoji" maxlength="2" placeholder="🙂" class="emoji-input" />
-            <input type="text" id="newHabitLabel" placeholder="Habit name" required class="label-input" />
-          </div>
-          <select id="newHabitType" class="type-select">
-            <option value="check">Yes / no</option>
-            <option value="counter">Counter (e.g. glasses, pages)</option>
-          </select>
-          <div id="newHabitTargetField" hidden class="target-field">
-            <label for="newHabitTarget">Target count</label>
-            <input type="number" id="newHabitTarget" min="1" value="1" />
-          </div>
-          <button type="submit" class="add-habit-submit">+ Add habit</button>
-        </form>
+        <div class="settings-row">
+          <span style="font-size:12px; color:var(--muted);">Time</span>
+          <input type="time" id="reminderTime" class="settings-value-pill" value="21:00" />
+        </div>
       </div>
+      <p class="settings-hint" id="notificationsHint"></p>
+
+      <div class="settings-section-label">Sync across devices</div>
+      <div class="settings-card" id="syncSection"></div>
+
+      <div class="settings-section-label">Your habits</div>
+      <div class="habit-chip-list" id="habitsList"></div>
+
+      <div class="settings-section-label">Sleep goal</div>
+      <div class="settings-card">
+        <div class="settings-row">
+          <div class="settings-row-label">🎯 <span>Target hours</span></div>
+          <div class="stepper">
+            <button type="button" class="stepper-btn" id="sleepGoalMinus">−</button>
+            <span id="sleepGoalValue">8h</span>
+            <button type="button" class="stepper-btn" id="sleepGoalPlus">+</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="app-footer">Habits, version 1.0</div>
     </div>
   </div>
 
   <script src="habits.js"></script>
   <script src="storage.js"></script>
+  <script src="ui.js"></script>
   <script src="theme.js"></script>
   <script src="confetti.js"></script>
-  <script src="insights.js"></script>
+  <script src="tracker.js"></script>
+  <script src="sleepTab.js"></script>
+  <script src="insightsTab.js"></script>
   <script src="dayEditor.js"></script>
+  <script src="addTask.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
   <script src="sync.js"></script>
+  <script src="push.js"></script>
   <script src="settings.js"></script>
   <script src="app.js"></script>
 </body>

@@ -1,16 +1,21 @@
 // App-shell cache so the tracker still opens (and your data is still readable) offline.
-const CACHE_NAME = "habit-tracker-v4";
+const CACHE_NAME = "habit-tracker-v6";
 const ASSETS = [
   "./",
   "./index.html",
   "./styles.css",
   "./habits.js",
   "./storage.js",
+  "./ui.js",
   "./theme.js",
   "./confetti.js",
-  "./insights.js",
+  "./tracker.js",
+  "./sleepTab.js",
+  "./insightsTab.js",
   "./dayEditor.js",
+  "./addTask.js",
   "./sync.js",
+  "./push.js",
   "./settings.js",
   "./app.js",
   "./manifest.json",
@@ -29,6 +34,32 @@ self.addEventListener("activate", (event) => {
       .keys()
       .then((keys) => Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))))
       .then(() => self.clients.claim())
+  );
+});
+
+// Web Push: fires even when the app/tab is fully closed, sent by the
+// scheduled Cloud Function in functions/index.js (only active once Sync is on).
+self.addEventListener("push", (event) => {
+  let data = { title: "Habits", body: "You have habits left today." };
+  try {
+    if (event.data) data = event.data.json();
+  } catch (e) {}
+  event.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: "icon.svg",
+      badge: "icon.svg",
+    })
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  event.waitUntil(
+    self.clients.matchAll({ type: "window" }).then((clients) => {
+      if (clients.length) return clients[0].focus();
+      return self.clients.openWindow("./");
+    })
   );
 });
 

@@ -1,36 +1,45 @@
-// Modal for viewing/editing any past day's habits, opened from the heatmap or weekly view.
+// Modal for viewing/editing any date's tasks, opened from the Insights
+// heatmap or the Habit Tracker views.
 function dayEditorRow(habit, entry) {
+  const t = themeFor(habit);
   const note = (entry.note || "").replace(/"/g, "&quot;");
+  const style = `--tone-bg:${t.bg}; --tone-text:${t.text}; --tone-muted:${t.muted}; --tone-accent:${t.accent}; --tone-badge-bg:${t.badgeBg};`;
+
   if (habit.type === "counter") {
     return `
-      <div class="modal-row" data-habit="${habit.id}" style="--habit-color: ${habit.color}">
-        <div class="modal-row-top">
-          <div class="modal-row-label">${habit.emoji} ${habit.label}</div>
-          <div class="modal-counter">
+      <div class="bento-card" style="${style} margin-bottom:8px;" data-habit="${habit.id}">
+        <div style="display:flex; align-items:center; justify-content:space-between;">
+          <div>${habit.emoji} ${habit.label}</div>
+          <div class="counter-controls">
             <button type="button" class="counter-btn minus" data-action="dec">−</button>
             <span class="counter-value">${entry.count || 0}</span>
             <button type="button" class="counter-btn plus" data-action="inc">+</button>
           </div>
         </div>
-        <input type="text" class="note-input" data-action="note" placeholder="Add a note" value="${note}" maxlength="140" />
+        <input type="text" class="task-note-input" data-action="note" placeholder="Add a note" value="${note}" maxlength="140" />
+      </div>`;
+  }
+  if (habit.type === "sleep") {
+    return `
+      <div class="bento-card" style="${style} margin-bottom:8px;" data-habit="${habit.id}">
+        <div>${habit.emoji} ${habit.label}: ${entry.hours ? entry.hours + "h" : "not logged"}</div>
+        <input type="text" class="task-note-input" data-action="note" placeholder="Add a note" value="${note}" maxlength="140" />
       </div>`;
   }
   const done = isCompleted(habit, entry);
   return `
-    <div class="modal-row" data-habit="${habit.id}" style="--habit-color: ${habit.color}">
-      <div class="modal-row-top">
-        <button type="button" class="checkbox modal-checkbox${done ? " done" : ""}" data-action="toggle">
-          <span class="checkbox-inner">${done ? "✓" : ""}</span>
-        </button>
-        <div class="modal-row-label">${habit.emoji} ${habit.label}</div>
+    <div class="bento-card" style="${style} margin-bottom:8px;" data-habit="${habit.id}">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <button type="button" class="task-checkbox${done ? " done" : ""}" data-action="toggle">${done ? "✓" : ""}</button>
+        <div>${habit.emoji} ${habit.label}</div>
       </div>
-      <input type="text" class="note-input" data-action="note" placeholder="Add a note" value="${note}" maxlength="140" />
+      <input type="text" class="task-note-input" data-action="note" placeholder="Add a note" value="${note}" maxlength="140" />
     </div>`;
 }
 
 function openDayEditor(date) {
   const today = todayKey();
-  if (date > today) return; // no editing the future
+  if (date > today) return;
 
   const modal = document.getElementById("dayModal");
   const title = document.getElementById("dayModalTitle");
@@ -38,22 +47,20 @@ function openDayEditor(date) {
 
   const isToday = date === today;
   title.textContent =
-    new Date(date + "T00:00:00").toLocaleDateString(undefined, {
-      weekday: "long",
-      month: "long",
-      day: "numeric",
-    }) + (isToday ? " (today)" : "");
+    new Date(date + "T00:00:00").toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" }) +
+    (isToday ? " (today)" : "");
 
   const state = getState();
   const entries = getEntriesForDate(state, date) || {};
+  const tasks = getTasksForDate(date);
 
-  body.innerHTML = getHabits()
-    .map((habit) => dayEditorRow(habit, entries[habit.id] || defaultEntry(habit)))
-    .join("");
+  body.innerHTML = tasks.length
+    ? tasks.map((habit) => dayEditorRow(habit, entries[habit.id] || defaultEntry(habit))).join("")
+    : `<div class="app-footer">Nothing was scheduled this day.</div>`;
 
-  body.querySelectorAll(".modal-row").forEach((row) => {
+  body.querySelectorAll(".bento-card[data-habit]").forEach((row) => {
     const habitId = row.dataset.habit;
-    const habit = getHabits().find((h) => h.id === habitId);
+    const habit = tasks.find((h) => h.id === habitId);
 
     const toggle = row.querySelector('[data-action="toggle"]');
     if (toggle) {
@@ -61,7 +68,7 @@ function openDayEditor(date) {
         const current = getEntriesForDate(getState(), date) || {};
         const done = isCompleted(habit, current[habitId]);
         setEntryForDate(date, habitId, { done: !done });
-        refreshApp();
+        if (typeof refreshApp === "function") refreshApp();
         openDayEditor(date);
       });
     }
@@ -73,14 +80,14 @@ function openDayEditor(date) {
         const current = getEntriesForDate(getState(), date) || {};
         const count = (current[habitId] && current[habitId].count) || 0;
         setEntryForDate(date, habitId, { count: Math.max(0, count - 1) });
-        refreshApp();
+        if (typeof refreshApp === "function") refreshApp();
         openDayEditor(date);
       });
       plus.addEventListener("click", () => {
         const current = getEntriesForDate(getState(), date) || {};
         const count = (current[habitId] && current[habitId].count) || 0;
         setEntryForDate(date, habitId, { count: count + 1 });
-        refreshApp();
+        if (typeof refreshApp === "function") refreshApp();
         openDayEditor(date);
       });
     }
@@ -92,7 +99,7 @@ function openDayEditor(date) {
       const value = e.target.value;
       debounceTimer = setTimeout(() => {
         setEntryForDate(date, habitId, { note: value });
-        refreshApp();
+        if (typeof refreshApp === "function") refreshApp();
       }, 400);
     });
   });

@@ -1,5 +1,6 @@
-// Settings panel: add/remove custom habits, and the daily reminder notification.
+// Settings panel: appearance, notifications, sync, habit list, sleep goal, profile.
 const REMINDER_KEY = "habitTracker.reminder";
+let syncCodeRevealed = false;
 
 function getReminderSettings() {
   try {
@@ -14,68 +15,100 @@ function saveReminderSettings(settings) {
   localStorage.setItem(REMINDER_KEY, JSON.stringify(settings));
 }
 
-function renderCustomHabitsList() {
-  const el = document.getElementById("customHabitsList");
+function renderHabitsList() {
+  const el = document.getElementById("habitsList");
   if (!el) return;
   const state = getState();
-  if (!state.customHabits.length) {
-    el.innerHTML = `<p class="settings-empty">No custom habits yet.</p>`;
-    return;
-  }
-  el.innerHTML = state.customHabits
-    .map(
-      (h) => `
-      <div class="custom-habit-row">
-        <span>${h.emoji} ${h.label}</span>
-        <button type="button" class="remove-habit-btn" data-habit="${h.id}" aria-label="Remove ${h.label}">✕</button>
-      </div>`
-    )
+  const removable = state.habits.filter((h) => h.type !== "sleep");
+  const chips = removable
+    .map((h) => {
+      const t = themeFor(h);
+      return `<button type="button" class="habit-chip" data-habit="${h.id}"><span class="habit-chip-dot" style="background:${t.accent};"></span>${h.emoji} ${h.label}<span style="margin-left:3px; opacity:0.6;">✕</span></button>`;
+    })
     .join("");
+  el.innerHTML = chips + `<button type="button" class="habit-chip add" id="settingsAddHabit">+ Add habit</button>`;
 
-  el.querySelectorAll(".remove-habit-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      removeHabit(btn.dataset.habit);
-      renderCustomHabitsList();
-      refreshApp();
+  el.querySelectorAll(".habit-chip[data-habit]").forEach((chip) => {
+    chip.addEventListener("click", () => {
+      removeHabit(chip.dataset.habit);
+      renderHabitsList();
+      if (typeof refreshApp === "function") refreshApp();
     });
+  });
+  document.getElementById("settingsAddHabit").addEventListener("click", () => {
+    document.getElementById("settingsPanel").hidden = true;
+    openAddTaskModal();
   });
 }
 
-function initAddHabitForm() {
-  const form = document.getElementById("addHabitForm");
-  if (!form) return;
-  const typeSelect = document.getElementById("newHabitType");
-  const targetField = document.getElementById("newHabitTargetField");
+function renderSyncSection() {
+  const el = document.getElementById("syncSection");
+  if (!el) return;
+  const code = getSyncCode();
 
-  typeSelect.addEventListener("change", () => {
-    targetField.hidden = typeSelect.value !== "counter";
-  });
-
-  form.addEventListener("submit", (e) => {
-    e.preventDefault();
-    const label = document.getElementById("newHabitLabel").value.trim();
-    if (!label) return;
-    const emoji = document.getElementById("newHabitEmoji").value.trim();
-    const type = typeSelect.value;
-    const target = parseInt(document.getElementById("newHabitTarget").value, 10) || 1;
-
-    addHabit({ label, emoji, type, target });
-    form.reset();
-    targetField.hidden = true;
-    renderCustomHabitsList();
-    refreshApp();
-  });
+  if (!code) {
+    el.innerHTML = `
+      <div class="settings-row">
+        <div class="settings-row-label">🔗 <span>Sync code</span></div>
+        <button type="button" class="settings-value-pill" id="syncSetup">Set up</button>
+      </div>
+      <div id="syncSetupForm" hidden style="padding: 10px 12px;">
+        <button type="button" class="submit-btn" id="syncGenerate" style="margin-bottom:8px;">Generate a code</button>
+        <div class="add-task-row">
+          <input type="text" id="syncCodeInput" placeholder="Enter code" maxlength="6" class="form-input" style="text-transform:uppercase;" />
+          <button type="button" class="settings-value-pill" id="syncConnect">Connect</button>
+        </div>
+      </div>
+    `;
+    document.getElementById("syncSetup").addEventListener("click", () => {
+      document.getElementById("syncSetupForm").hidden = false;
+    });
+    document.getElementById("syncGenerate").addEventListener("click", () => {
+      enableSyncAsHost(generateSyncCode());
+      syncCodeRevealed = true;
+      renderSyncSection();
+      updateNotificationsHint();
+    });
+    document.getElementById("syncConnect").addEventListener("click", () => {
+      const value = document.getElementById("syncCodeInput").value.trim().toUpperCase();
+      if (!value) return;
+      enableSyncAsGuest(value);
+      renderSyncSection();
+      updateNotificationsHint();
+    });
+  } else {
+    el.innerHTML = `
+      <div class="settings-row">
+        <div class="settings-row-label">🔗 <span>Sync code</span></div>
+        <button type="button" class="reveal-code" id="syncReveal">
+          <span id="syncCodeDisplay">${syncCodeRevealed ? code : "••••••"}</span>
+          <span>👁️</span>
+        </button>
+      </div>
+      <div class="settings-row">
+        <button type="button" class="reveal-code" id="syncStop" style="color:#e24b4a;">Stop syncing</button>
+      </div>
+    `;
+    document.getElementById("syncReveal").addEventListener("click", () => {
+      syncCodeRevealed = !syncCodeRevealed;
+      document.getElementById("syncCodeDisplay").textContent = syncCodeRevealed ? code : "••••••";
+    });
+    document.getElementById("syncStop").addEventListener("click", () => {
+      disableSync();
+      syncCodeRevealed = false;
+      renderSyncSection();
+      updateNotificationsHint();
+    });
+  }
 }
 
 function notifyIfIncomplete() {
   const state = getState();
-  const habits = getHabits();
-  const remaining = habits.filter((h) => !isCompleted(h, state.entries[h.id]));
+  const tasks = getTasksForDate(state.date).filter((h) => h.type !== "sleep");
+  const remaining = tasks.filter((h) => !isCompleted(h, state.entries[h.id]));
   if (remaining.length === 0) return;
-  new Notification("Daily habits reminder", {
-    body: `${remaining.length} habit${remaining.length === 1 ? "" : "s"} left today: ${remaining
-      .map((h) => h.label)
-      .join(", ")}`,
+  new Notification("Habits", {
+    body: `${remaining.length} left today: ${remaining.map((h) => h.label).join(", ")}`,
     icon: "icon.svg",
   });
 }
@@ -95,7 +128,15 @@ function checkReminderTick() {
   localStorage.setItem("habitTracker.reminderFiredDate", today);
 }
 
-function initReminders() {
+function updateNotificationsHint() {
+  const hint = document.getElementById("notificationsHint");
+  if (!hint) return;
+  hint.textContent = getSyncCode()
+    ? "Notifies you even if the app is closed, once a day at this time."
+    : "Turn on Sync above first — that's what lets a reminder reach you while the app is closed.";
+}
+
+function initNotifications() {
   const toggle = document.getElementById("reminderToggle");
   const timeInput = document.getElementById("reminderTime");
   if (!toggle || !timeInput) return;
@@ -103,20 +144,36 @@ function initReminders() {
   const settings = getReminderSettings();
   toggle.checked = settings.enabled;
   timeInput.value = settings.time;
+  const updateHint = updateNotificationsHint;
+  updateHint();
 
   toggle.addEventListener("change", async () => {
-    if (toggle.checked && Notification.permission !== "granted") {
-      const permission = await Notification.requestPermission();
-      if (permission !== "granted") {
-        toggle.checked = false;
-        return;
-      }
+    if (!toggle.checked) {
+      saveReminderSettings({ enabled: false, time: timeInput.value });
+      if (typeof unsubscribeFromPush === "function") unsubscribeFromPush().catch(() => {});
+      return;
     }
-    saveReminderSettings({ enabled: toggle.checked, time: timeInput.value });
+    if (!getSyncCode()) {
+      toggle.checked = false;
+      updateHint();
+      return;
+    }
+    try {
+      await subscribeToPush(timeInput.value);
+      saveReminderSettings({ enabled: true, time: timeInput.value });
+    } catch (e) {
+      toggle.checked = false;
+    }
+    // Local fallback while the tab is open, works regardless of sync.
+    if ("Notification" in window && Notification.permission !== "granted") {
+      await Notification.requestPermission();
+    }
   });
-
   timeInput.addEventListener("change", () => {
     saveReminderSettings({ enabled: toggle.checked, time: timeInput.value });
+    if (toggle.checked && typeof updatePushReminderTime === "function") {
+      updatePushReminderTime(timeInput.value).catch(() => {});
+    }
   });
 
   if ("Notification" in window) {
@@ -126,42 +183,44 @@ function initReminders() {
   }
 }
 
-function renderSyncSection() {
-  const el = document.getElementById("syncSection");
-  if (!el) return;
-  const code = getSyncCode();
+function initAppearanceRow() {
+  const toggle = document.getElementById("lightModeToggle");
+  if (!toggle) return;
+  toggle.checked = getStoredTheme() === "light";
+  toggle.addEventListener("change", () => {
+    applyTheme(toggle.checked ? "light" : "dark");
+    if (typeof refreshApp === "function") refreshApp();
+  });
+}
 
-  if (code) {
-    el.innerHTML = `
-      <p class="settings-hint">Synced. Enter this code on your other device:</p>
-      <div class="sync-code-display">${code}</div>
-      <button type="button" id="syncDisconnect" class="add-habit-submit sync-disconnect">Stop syncing</button>
-    `;
-    document.getElementById("syncDisconnect").addEventListener("click", () => {
-      disableSync();
-      renderSyncSection();
-    });
-  } else {
-    el.innerHTML = `
-      <button type="button" id="syncGenerate" class="add-habit-submit">Generate a sync code</button>
-      <p class="settings-hint">Or enter a code from your other device:</p>
-      <div class="add-habit-row">
-        <input type="text" id="syncCodeInput" placeholder="ABC123" maxlength="6" class="label-input sync-code-input" />
-        <button type="button" id="syncConnect" class="add-habit-submit sync-connect-btn">Connect</button>
-      </div>
-    `;
-    document.getElementById("syncGenerate").addEventListener("click", () => {
-      enableSyncAsHost(generateSyncCode());
-      renderSyncSection();
-    });
-    document.getElementById("syncConnect").addEventListener("click", () => {
-      const input = document.getElementById("syncCodeInput");
-      const value = input.value.trim().toUpperCase();
-      if (!value) return;
-      enableSyncAsGuest(value);
-      renderSyncSection();
-    });
+function initSleepGoalStepper() {
+  const valueEl = document.getElementById("sleepGoalValue");
+  const minusBtn = document.getElementById("sleepGoalMinus");
+  const plusBtn = document.getElementById("sleepGoalPlus");
+  if (!valueEl) return;
+  function render() {
+    valueEl.textContent = getSleepGoal() + "h";
   }
+  minusBtn.addEventListener("click", () => {
+    setSleepGoal(Math.max(4, getSleepGoal() - 0.5));
+    render();
+    if (typeof refreshApp === "function") refreshApp();
+  });
+  plusBtn.addEventListener("click", () => {
+    setSleepGoal(Math.min(12, getSleepGoal() + 0.5));
+    render();
+    if (typeof refreshApp === "function") refreshApp();
+  });
+  render();
+}
+
+function initProfileName() {
+  const input = document.getElementById("userNameInput");
+  if (!input) return;
+  input.value = getUserName();
+  input.addEventListener("change", () => {
+    localStorage.setItem("habitTracker.userName", input.value.trim());
+  });
 }
 
 function initSettingsPanel() {
@@ -171,7 +230,7 @@ function initSettingsPanel() {
   if (!openBtn || !panel) return;
 
   openBtn.addEventListener("click", () => {
-    renderCustomHabitsList();
+    renderHabitsList();
     renderSyncSection();
     panel.hidden = false;
   });
@@ -182,6 +241,8 @@ function initSettingsPanel() {
     if (e.target.id === "settingsPanel") panel.hidden = true;
   });
 
-  initAddHabitForm();
-  initReminders();
+  initAppearanceRow();
+  initNotifications();
+  initSleepGoalStepper();
+  initProfileName();
 }
