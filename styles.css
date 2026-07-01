@@ -38,6 +38,8 @@
 
 html {
   touch-action: manipulation; /* kills the iOS double-tap-to-zoom gesture */
+  height: 100%;
+  overscroll-behavior: none;
 }
 
 body {
@@ -45,9 +47,27 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   background: var(--bg);
   color: var(--ink);
-  min-height: 100vh;
+  height: 100%;
+  overflow: hidden; /* only .app-scroll-area scrolls, so the top bar and bottom nav never drift on iOS bounce-scroll */
+  overscroll-behavior: none;
   -webkit-font-smoothing: antialiased;
   transition: background 0.3s ease, color 0.3s ease;
+}
+
+.app-shell {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+}
+
+.app-scroll-area {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
 input,
@@ -61,8 +81,7 @@ button {
 .app {
   max-width: 480px;
   margin: 0 auto;
-  padding: 20px 18px 90px;
-  min-height: 100vh;
+  padding: 4px 18px 24px;
   position: relative;
 }
 
@@ -73,12 +92,18 @@ button {
   z-index: 999;
 }
 
-/* Screen headers: italic serif + a hand-scribbled underline */
+/* Screen headers: italic serif + a hand-scribbled underline. Sticky so the
+   title stays visible while the content below it scrolls. */
 .screen-title-wrap {
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-bottom: 6px;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--bg);
+  padding: 4px 0 10px;
+  margin-bottom: 4px;
 }
 
 .screen-title {
@@ -101,13 +126,14 @@ button {
   margin-top: 4px;
 }
 
-/* Top bar: view tabs + theme/settings buttons */
+/* Top bar: static, part of the fixed shell so it never drifts on scroll */
 .top-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 18px;
   gap: 8px;
+  flex-shrink: 0;
+  padding: 16px 18px 10px;
 }
 
 .view-tabs {
@@ -320,6 +346,54 @@ button {
   padding: 12px 14px;
   background: var(--tone-bg, var(--card-bg));
   color: var(--tone-text, var(--ink));
+}
+
+/* Swipe-to-delete: the card slides left over a red delete affordance
+   revealed underneath. Drag handling lives in app.js. */
+.swipe-wrapper {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.swipe-delete-bg {
+  position: absolute;
+  inset: 0;
+  background: #e24b4a;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 22px;
+}
+
+.swipe-delete-icon {
+  color: white;
+  font-size: 18px;
+}
+
+.swipe-wrapper .bento-card {
+  position: relative;
+  touch-action: pan-y;
+  will-change: transform;
+}
+
+.swipe-wrapper .bento-card.dragging {
+  transition: none;
+}
+
+.swipe-wrapper .bento-card.snapping {
+  transition: transform 0.2s ease;
+}
+
+.delete-scope-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.schedule-option.danger {
+  border-color: #e24b4a;
+  color: #e24b4a;
 }
 
 .task-card {
@@ -1210,15 +1284,11 @@ button {
 
 /* Bottom tab bar */
 .bottom-nav {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
+  flex-shrink: 0;
   display: flex;
   justify-content: center;
   padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
-  background: linear-gradient(to top, var(--bg) 60%, transparent);
-  z-index: 500;
+  background: var(--bg);
 }
 
 .bottom-nav-inner {

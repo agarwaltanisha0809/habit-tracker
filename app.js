@@ -154,7 +154,7 @@ function renderCheckCard(habit, entry, date) {
     renderToday();
   });
   bindNoteInput(card, habit, date);
-  return card;
+  return wrapWithSwipeToDelete(card, habit, date);
 }
 
 function renderCounterCard(habit, entry, date) {
@@ -196,7 +196,99 @@ function renderCounterCard(habit, entry, date) {
     renderToday();
   });
   bindNoteInput(card, habit, date);
-  return card;
+  return wrapWithSwipeToDelete(card, habit, date);
+}
+
+// --- Swipe-to-delete, with Google-Calendar-style recurrence scope ---
+const SWIPE_REVEAL_WIDTH = 76;
+let pendingDeleteHabit = null;
+let pendingDeleteDate = null;
+
+function wrapWithSwipeToDelete(card, habit, date) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "swipe-wrapper";
+  wrapper.innerHTML = `<div class="swipe-delete-bg"><span class="swipe-delete-icon">🗑️</span></div>`;
+  wrapper.appendChild(card);
+
+  let startX = 0;
+  let baseX = 0;
+  let dragging = false;
+  let revealed = false;
+
+  function setX(x) {
+    card.style.transform = x ? `translateX(${x}px)` : "";
+  }
+
+  card.addEventListener("pointerdown", (e) => {
+    if (e.target.closest("button, input")) return;
+    startX = e.clientX;
+    baseX = revealed ? -SWIPE_REVEAL_WIDTH : 0;
+    dragging = true;
+    card.classList.add("dragging");
+    card.setPointerCapture(e.pointerId);
+  });
+
+  card.addEventListener("pointermove", (e) => {
+    if (!dragging) return;
+    const x = Math.max(-SWIPE_REVEAL_WIDTH, Math.min(0, baseX + (e.clientX - startX)));
+    setX(x);
+  });
+
+  function endDrag(e) {
+    if (!dragging) return;
+    dragging = false;
+    card.classList.remove("dragging");
+    card.classList.add("snapping");
+    const endX = baseX + (e.clientX - startX);
+    revealed = endX < -SWIPE_REVEAL_WIDTH / 2;
+    setX(revealed ? -SWIPE_REVEAL_WIDTH : 0);
+    setTimeout(() => card.classList.remove("snapping"), 200);
+  }
+  card.addEventListener("pointerup", endDrag);
+  card.addEventListener("pointercancel", endDrag);
+
+  wrapper.querySelector(".swipe-delete-bg").addEventListener("click", () => {
+    openDeleteScope(habit, date);
+  });
+
+  return wrapper;
+}
+
+function openDeleteScope(habit, date) {
+  if (habit.schedule.kind === "once") {
+    removeHabit(habit.id);
+    refreshApp();
+    return;
+  }
+  pendingDeleteHabit = habit;
+  pendingDeleteDate = date;
+  document.getElementById("deleteScopeModal").hidden = false;
+}
+
+function initDeleteScopeModal() {
+  const modal = document.getElementById("deleteScopeModal");
+  const close = () => {
+    modal.hidden = true;
+  };
+  document.getElementById("deleteScopeClose").addEventListener("click", close);
+  modal.addEventListener("click", (e) => {
+    if (e.target.id === "deleteScopeModal") close();
+  });
+  document.getElementById("deleteScopeOne").addEventListener("click", () => {
+    if (pendingDeleteHabit) skipHabitOnDate(pendingDeleteHabit.id, pendingDeleteDate);
+    close();
+    refreshApp();
+  });
+  document.getElementById("deleteScopeFollowing").addEventListener("click", () => {
+    if (pendingDeleteHabit) endHabitRecurrenceFrom(pendingDeleteHabit.id, pendingDeleteDate);
+    close();
+    refreshApp();
+  });
+  document.getElementById("deleteScopeAll").addEventListener("click", () => {
+    if (pendingDeleteHabit) removeHabit(pendingDeleteHabit.id);
+    close();
+    refreshApp();
+  });
 }
 
 function burstAnimation(el, justCompleted) {
@@ -319,6 +411,7 @@ initBottomNav();
 initAddTaskButton();
 initDayEditor();
 initAddTask();
+initDeleteScopeModal();
 initSettingsPanel();
 initInsightsNav();
 initServiceWorker();

@@ -48,9 +48,13 @@ const EMOJI_CHOICES = [
 
 // Schedule kinds: "daily", "weekdays", "weekends", "custom" (specific
 // weekdays via schedule.days, 0=Sun..6=Sat like Date.getDay()), or "once"
-// (schedule.date is a single "YYYY-MM-DD").
+// (schedule.date is a single "YYYY-MM-DD"). schedule.until (optional) ends
+// the recurrence after that date; habit.skipDates (optional) excludes
+// individual dates — both set via the "delete for these days" flow.
 function isScheduledForDate(habit, dateStr) {
+  if (habit.skipDates && habit.skipDates.includes(dateStr)) return false;
   const schedule = habit.schedule || { kind: "daily" };
+  if (schedule.until && dateStr > schedule.until) return false;
   if (schedule.kind === "once") return schedule.date === dateStr;
   const day = new Date(dateStr + "T00:00:00").getDay();
   if (schedule.kind === "daily") return true;

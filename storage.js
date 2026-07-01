@@ -292,6 +292,34 @@ function removeHabit(habitId) {
   return state;
 }
 
+// Removes a recurring habit from a single date only (e.g. "just this day"
+// in the delete-scope picker) without affecting other occurrences.
+function skipHabitOnDate(habitId, date) {
+  const state = getState();
+  const habit = state.habits.find((h) => h.id === habitId);
+  if (!habit) return state;
+  habit.skipDates = (habit.skipDates || []).concat(date);
+  if (date === state.date) delete state.entries[habitId];
+  ALL_HABITS = state.habits;
+  markDirty(state, "__habits__");
+  saveRaw(state);
+  return state;
+}
+
+// Ends a recurring habit's schedule the day before `date`, so it stops
+// appearing from `date` onward but past occurrences are untouched.
+function endHabitRecurrenceFrom(habitId, date) {
+  const state = getState();
+  const habit = state.habits.find((h) => h.id === habitId);
+  if (!habit) return state;
+  habit.schedule = { ...habit.schedule, until: addDays(date, -1) };
+  if (date === state.date) delete state.entries[habitId];
+  ALL_HABITS = state.habits;
+  markDirty(state, "__habits__");
+  saveRaw(state);
+  return state;
+}
+
 function setTrackerOverride(habitId, override) {
   // override: true (force show), false (force hide), null (auto-decide)
   const state = getState();

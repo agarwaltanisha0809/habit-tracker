@@ -25,7 +25,7 @@
     <button type="button" class="opening-continue" id="openingContinue">Continue</button>
   </div>
 
-  <div class="app" id="mainApp" hidden>
+  <div class="app-shell" id="mainApp" hidden>
     <div class="top-bar">
       <div style="flex:1;"></div>
       <div class="top-bar-actions">
@@ -34,78 +34,95 @@
       </div>
     </div>
 
-    <!-- Today / calendar view -->
-    <section id="view-today">
-      <div class="screen-title-wrap">
-        <div class="screen-title" id="todayLabel">Today</div>
-        <div id="todayScribble"></div>
-      </div>
+    <div class="app-scroll-area" id="scrollArea">
+      <div class="app">
+        <!-- Today / calendar view -->
+        <section id="view-today">
+          <div class="screen-title-wrap">
+            <div class="screen-title" id="todayLabel">Today</div>
+            <div id="todayScribble"></div>
+          </div>
 
-      <div class="home-header-row">
-        <div class="week-strip" id="weekStrip" style="flex:1;"></div>
-      </div>
-      <div class="home-header-row" style="margin-bottom: 14px;">
-        <button type="button" class="icon-btn" id="addTaskBtn" aria-label="Add habit or task" style="background:var(--accent); color:var(--accent-ink);">+</button>
-        <div class="mini-ring" id="miniRing">
-          <div class="mini-ring-svg"></div>
-          <div class="mini-ring-label">0/0</div>
-        </div>
-      </div>
+          <div class="home-header-row">
+            <div class="week-strip" id="weekStrip" style="flex:1;"></div>
+          </div>
+          <div class="home-header-row" style="margin-bottom: 14px;">
+            <button type="button" class="icon-btn" id="addTaskBtn" aria-label="Add habit or task" style="background:var(--accent); color:var(--accent-ink);">+</button>
+            <div class="mini-ring" id="miniRing">
+              <div class="mini-ring-svg"></div>
+              <div class="mini-ring-label">0/0</div>
+            </div>
+          </div>
 
-      <div class="task-list" id="taskList"></div>
-    </section>
+          <div class="task-list" id="taskList"></div>
+        </section>
 
-    <!-- Habit tracker view -->
-    <section id="view-tracker" hidden>
-      <div class="screen-title-wrap">
-        <div class="screen-title">Habit tracker</div>
-        <div id="trackerScribble"></div>
-      </div>
-      <div class="pill-switcher" id="trackerSwitcher"></div>
-      <div id="trackerContent"></div>
-      <div class="tracker-footnote" id="trackerFootnote"></div>
-    </section>
+        <!-- Habit tracker view -->
+        <section id="view-tracker" hidden>
+          <div class="screen-title-wrap">
+            <div class="screen-title">Habit tracker</div>
+            <div id="trackerScribble"></div>
+          </div>
+          <div class="pill-switcher" id="trackerSwitcher"></div>
+          <div id="trackerContent"></div>
+          <div class="tracker-footnote" id="trackerFootnote"></div>
+        </section>
 
-    <!-- Sleep view -->
-    <section id="view-sleep" hidden>
-      <div class="screen-title-wrap">
-        <div class="screen-title">Sleep</div>
-        <div id="sleepScribble"></div>
-      </div>
-      <div class="sleep-hero" id="sleepHero"></div>
-      <div style="font-size: 11px; color: var(--muted-2); margin: 4px 0 8px;">Last 7 nights</div>
-      <div class="sleep-bubbles-card">
-        <div class="sleep-bubble-row" id="sleepBubbleRow"></div>
-      </div>
-      <div class="sleep-insight-grid" id="sleepInsights" style="display:block;"></div>
-    </section>
+        <!-- Sleep view -->
+        <section id="view-sleep" hidden>
+          <div class="screen-title-wrap">
+            <div class="screen-title">Sleep</div>
+            <div id="sleepScribble"></div>
+          </div>
+          <div class="sleep-hero" id="sleepHero"></div>
+          <div style="font-size: 11px; color: var(--muted-2); margin: 4px 0 8px;">Last 7 nights</div>
+          <div class="sleep-bubbles-card">
+            <div class="sleep-bubble-row" id="sleepBubbleRow"></div>
+          </div>
+          <div class="sleep-insight-grid" id="sleepInsights" style="display:block;"></div>
+        </section>
 
-    <!-- Insights view -->
-    <section id="view-insights" hidden>
-      <div class="screen-title-wrap">
-        <div class="screen-title">Insights</div>
-        <div id="insightsScribble"></div>
+        <!-- Insights view -->
+        <section id="view-insights" hidden>
+          <div class="screen-title-wrap">
+            <div class="screen-title">Insights</div>
+            <div id="insightsScribble"></div>
+          </div>
+          <div class="month-nav">
+            <button type="button" class="month-nav-btn" id="insightsMonthPrev">‹</button>
+            <span class="month-nav-label" id="insightsMonthLabel"></span>
+            <button type="button" class="month-nav-btn" id="insightsMonthNext">›</button>
+          </div>
+          <div class="insights-editorial" id="insightsEditorial"></div>
+          <div class="heatmap-month-card" id="insightsHeatmap"></div>
+          <div class="insights-pill-rows" id="insightsPills"></div>
+        </section>
       </div>
-      <div class="month-nav">
-        <button type="button" class="month-nav-btn" id="insightsMonthPrev">‹</button>
-        <span class="month-nav-label" id="insightsMonthLabel"></span>
-        <button type="button" class="month-nav-btn" id="insightsMonthNext">›</button>
-      </div>
-      <div class="insights-editorial" id="insightsEditorial"></div>
-      <div class="heatmap-month-card" id="insightsHeatmap"></div>
-      <div class="insights-pill-rows" id="insightsPills"></div>
-    </section>
+    </div>
 
-    <div class="app-footer">Resets automatically at midnight</div>
+    <!-- Bottom tab navigation -->
+    <div class="bottom-nav" id="bottomNav">
+      <div class="bottom-nav-inner">
+        <button type="button" class="bottom-nav-btn active" data-tab="today"><span>📅</span><span>Today</span></button>
+        <button type="button" class="bottom-nav-btn" data-tab="tracker"><span>📈</span><span>Tracker</span></button>
+        <button type="button" class="bottom-nav-btn" data-tab="sleep"><span>😴</span><span>Sleep</span></button>
+        <button type="button" class="bottom-nav-btn" data-tab="insights"><span>✨</span><span>Insights</span></button>
+      </div>
+    </div>
   </div>
 
-  <!-- Bottom tab navigation -->
-  <div class="bottom-nav" id="bottomNav" hidden>
-    <div class="bottom-nav-inner">
-      <button type="button" class="bottom-nav-btn active" data-tab="today"><span>📅</span><span>Today</span></button>
-      <button type="button" class="bottom-nav-btn" data-tab="tracker"><span>📈</span><span>Tracker</span></button>
-      <button type="button" class="bottom-nav-btn" data-tab="sleep"><span>😴</span><span>Sleep</span></button>
-      <button type="button" class="bottom-nav-btn" data-tab="insights"><span>✨</span><span>Insights</span></button>
+  <!-- Delete-scope modal, shown when swiping to delete a recurring habit -->
+  <div id="deleteScopeModal" class="modal-overlay" hidden>
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Delete habit</h3>
+        <button id="deleteScopeClose" class="icon-btn" aria-label="Close">✕</button>
+      </div>
+      <div class="delete-scope-options">
+        <button type="button" class="schedule-option" id="deleteScopeOne" style="width:100%;">Just this day</button>
+        <button type="button" class="schedule-option" id="deleteScopeFollowing" style="width:100%;">This and following days</button>
+        <button type="button" class="schedule-option danger" id="deleteScopeAll" style="width:100%;">All days (delete habit)</button>
+      </div>
     </div>
   </div>
 
