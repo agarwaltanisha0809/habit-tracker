@@ -42,17 +42,25 @@ function ringSvg(size, strokeWidth, fraction, trackColor, fillColor) {
   </svg>`;
 }
 
+// Fill polygon's bottom edge stays pinned at the glass's actual bottom
+// (never translated), only the top water-line moves with fraction — so the
+// glass always looks fully anchored, even near 100% full.
 function glassSvg(fraction, width, height, strokeColor, fillColor) {
   const w = width;
   const h = height;
   const topInset = w * 0.12;
   const bottomInset = w * 0.23;
   const cupPath = `M${topInset - 1},2 L${w - topInset + 1},2 L${w - bottomInset},${h - 2} L${bottomInset},${h - 2} Z`;
-  const fillTop = h - h * Math.max(0, Math.min(1, fraction)) * 0.94 - 1;
+  const f = Math.max(0, Math.min(1, fraction));
+  const fillTop = 2 + (h - 4) * (1 - f);
+  const left = topInset - 4;
+  const right = w - topInset + 4;
+  const mid = (left + right) / 2;
+  const uid = `${Math.round(f * 1000)}-${w}-${height}`;
   return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" class="glass-svg" aria-hidden="true">
-    <clipPath id="cupclip-${Math.round(fraction * 1000)}-${w}"><path d="${cupPath}"/></clipPath>
-    <path d="M${bottomInset - 4},${h * 0.42} Q${w / 2 - 4},${h * 0.36} ${w / 2 + 4},${h * 0.42} T${w - bottomInset + 4},${h * 0.42} L${w + 2},${h + 2} L-2,${h + 2} Z"
-      fill="${fillColor}" clip-path="url(#cupclip-${Math.round(fraction * 1000)}-${w})" transform="translate(0, ${fillTop - h * 0.42})"/>
+    <clipPath id="cupclip-${uid}"><path d="${cupPath}"/></clipPath>
+    <path d="M${left},${fillTop} Q${mid - 4},${fillTop - 3} ${mid + 4},${fillTop} T${right},${fillTop} L${right},${h + 2} L${left},${h + 2} Z"
+      fill="${fillColor}" clip-path="url(#cupclip-${uid})"/>
     <path d="${cupPath}" fill="none" stroke="${strokeColor}" stroke-width="1.8"/>
   </svg>`;
 }

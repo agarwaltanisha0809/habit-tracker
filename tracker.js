@@ -159,7 +159,7 @@ function renderTrackerMonthly(state, container) {
     renderTrackerTab();
   });
   document.getElementById("trackerMonthNext").addEventListener("click", () => {
-    trackerMonthOffset = Math.min(0, trackerMonthOffset + 1);
+    trackerMonthOffset++;
     renderTrackerTab();
   });
 }

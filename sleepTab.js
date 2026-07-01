@@ -73,6 +73,20 @@ function renderSleepTab() {
   const avgHours = week.length ? week.reduce((a, n) => a + n.hours, 0) / week.length : 0;
   const fraction = goal ? avgHours / goal : 0;
 
+  // If bedtime was logged before midnight and "I'm awake" was tapped after,
+  // endSleep() correctly saves the completed night under yesterday's date —
+  // so if today's entry is empty, check yesterday before saying "not tracking".
+  let effectiveEntry = sleepEntry;
+  let referencesLastNight = false;
+  if (!sleepEntry.startAt && !(sleepEntry.hours > 0)) {
+    const yesterday = addDays(state.date, -1);
+    const yEntry = state.history[yesterday] && state.history[yesterday].sleep;
+    if (yEntry && yEntry.hours > 0) {
+      effectiveEntry = yEntry;
+      referencesLastNight = true;
+    }
+  }
+
   let actionLabel = "Going to bed";
   let actionAction = "start";
   let statusLine = "Not tracking yet tonight";
@@ -80,10 +94,11 @@ function renderSleepTab() {
     actionLabel = "I'm awake";
     actionAction = "end";
     statusLine = `Bedtime logged at ${formatClockTime(sleepEntry.startAt)}`;
-  } else if (sleepEntry.hours > 0) {
-    actionLabel = "Log again";
-    actionAction = "reset";
-    statusLine = `Slept ${sleepEntry.hours}h · ${formatClockTime(sleepEntry.startAt)} to ${formatClockTime(sleepEntry.endAt)}`;
+  } else if (effectiveEntry.hours > 0) {
+    actionLabel = referencesLastNight ? "Going to bed" : "Log again";
+    actionAction = referencesLastNight ? "start" : "reset";
+    const when = referencesLastNight ? "last night" : "";
+    statusLine = `Slept ${effectiveEntry.hours}h ${when} · ${formatClockTime(effectiveEntry.startAt)} to ${formatClockTime(effectiveEntry.endAt)}`;
   }
 
   heroEl.innerHTML = `

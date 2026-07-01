@@ -116,7 +116,7 @@ function initInsightsNav() {
     renderInsightsTab();
   });
   document.getElementById("insightsMonthNext").addEventListener("click", () => {
-    insightsMonthOffset = Math.min(0, insightsMonthOffset + 1);
+    insightsMonthOffset++;
     renderInsightsTab();
   });
 }

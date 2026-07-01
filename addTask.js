@@ -1,8 +1,10 @@
-// The "add a habit or task" flow: emoji picker, type, and schedule
-// (daily / weekdays / weekends / custom days / just today).
+// The "add / edit a habit or task" flow: emoji picker, type, and schedule
+// (daily / weekdays / weekends / custom days / just today). The same form
+// and modal are reused for editing — editingHabitId is null when creating.
 let selectedEmoji = "⭐";
 let selectedScheduleKind = "daily";
 let selectedCustomDays = [];
+let editingHabitId = null;
 
 function renderEmojiGrid() {
   const el = document.getElementById("emojiGrid");
@@ -69,7 +71,16 @@ function renderWeekdayPicker() {
   });
 }
 
+function setModalMode(isEdit) {
+  document.getElementById("addTaskModalTitle").textContent = isEdit ? "Edit habit" : "Add a habit or task";
+  document.getElementById("addTaskSubmitBtn").textContent = isEdit ? "Save changes" : "Add";
+  // The type (yes/no vs counter) can't change after creation without risking
+  // mismatched history, so lock it while editing.
+  document.getElementById("newTaskType").disabled = isEdit;
+}
+
 function openAddTaskModal() {
+  editingHabitId = null;
   selectedEmoji = "⭐";
   selectedScheduleKind = "daily";
   selectedCustomDays = [];
@@ -78,6 +89,33 @@ function openAddTaskModal() {
   document.getElementById("emojiGrid").hidden = true;
   document.getElementById("targetField").hidden = true;
   document.getElementById("liquidField").hidden = true;
+  document.getElementById("newTaskIsLiquid").checked = false;
+  setModalMode(false);
+  renderScheduleOptions();
+  document.getElementById("addTaskModal").hidden = false;
+}
+
+function openEditTaskModal(habit) {
+  editingHabitId = habit.id;
+  selectedEmoji = habit.emoji || "⭐";
+  selectedCustomDays = habit.schedule && habit.schedule.kind === "custom" ? habit.schedule.days.slice() : [];
+  selectedScheduleKind = habit.schedule ? habit.schedule.kind : "daily";
+
+  document.getElementById("addTaskForm").reset();
+  document.getElementById("emojiTrigger").textContent = selectedEmoji;
+  document.getElementById("emojiGrid").hidden = true;
+  document.getElementById("newTaskLabel").value = habit.label;
+  document.getElementById("newTaskType").value = habit.type === "counter" ? "counter" : "check";
+
+  const isCounter = habit.type === "counter";
+  document.getElementById("targetField").hidden = !isCounter;
+  document.getElementById("newTaskTarget").value = isCounter ? habit.target : 1;
+  const isLiquid = isCounter && !!habit.unitMl;
+  document.getElementById("newTaskIsLiquid").checked = isLiquid;
+  document.getElementById("liquidField").hidden = !isLiquid;
+  document.getElementById("newTaskUnitMl").value = habit.unitMl || 250;
+
+  setModalMode(true);
   renderScheduleOptions();
   document.getElementById("addTaskModal").hidden = false;
 }
@@ -124,7 +162,11 @@ function initAddTask() {
       schedule = { kind: selectedScheduleKind };
     }
 
-    addHabit({ label, emoji: selectedEmoji, type, schedule, target, unitMl });
+    if (editingHabitId) {
+      updateHabit(editingHabitId, { label, emoji: selectedEmoji, schedule, target, unitMl });
+    } else {
+      addHabit({ label, emoji: selectedEmoji, type, schedule, target, unitMl });
+    }
     closeAddTaskModal();
     if (typeof refreshApp === "function") refreshApp();
     if (typeof renderHabitsList === "function") renderHabitsList();

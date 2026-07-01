@@ -38,19 +38,23 @@
       <div class="app">
         <!-- Today / calendar view -->
         <section id="view-today">
-          <div class="screen-title-wrap">
-            <div class="screen-title" id="todayLabel">Today</div>
-            <div id="todayScribble"></div>
-          </div>
+          <div class="today-sticky-header">
+            <div class="screen-title-wrap no-sticky">
+              <div class="screen-title" id="todayLabel">Today</div>
+              <div id="todayScribble"></div>
+            </div>
 
-          <div class="home-header-row">
-            <div class="week-strip" id="weekStrip" style="flex:1;"></div>
-          </div>
-          <div class="home-header-row" style="margin-bottom: 14px;">
-            <button type="button" class="icon-btn" id="addTaskBtn" aria-label="Add habit or task" style="background:var(--accent); color:var(--accent-ink);">+</button>
-            <div class="mini-ring" id="miniRing">
-              <div class="mini-ring-svg"></div>
-              <div class="mini-ring-label">0/0</div>
+            <div class="week-nav-row">
+              <button type="button" class="week-nav-btn" id="weekPrev" aria-label="Previous week">‹</button>
+              <div class="week-strip" id="weekStrip" style="flex:1;"></div>
+              <button type="button" class="week-nav-btn" id="weekNext" aria-label="Next week">›</button>
+            </div>
+            <div class="home-header-row" style="margin-bottom: 10px;">
+              <button type="button" class="icon-btn" id="addTaskBtn" aria-label="Add habit or task" style="background:var(--accent); color:var(--accent-ink);">+</button>
+              <div class="mini-ring" id="miniRing">
+                <div class="mini-ring-svg"></div>
+                <div class="mini-ring-label">0/0</div>
+              </div>
             </div>
           </div>
 
@@ -137,11 +141,11 @@
     </div>
   </div>
 
-  <!-- Add habit / task modal -->
+  <!-- Add / edit habit or task modal -->
   <div id="addTaskModal" class="modal-overlay" hidden>
     <div class="modal-card">
       <div class="modal-header">
-        <h3>Add a habit or task</h3>
+        <h3 id="addTaskModalTitle">Add a habit or task</h3>
         <button id="addTaskModalClose" class="icon-btn" aria-label="Close">✕</button>
       </div>
       <form id="addTaskForm">
@@ -183,7 +187,7 @@
           </div>
         </div>
 
-        <button type="submit" class="submit-btn">Add</button>
+        <button type="submit" class="submit-btn" id="addTaskSubmitBtn">Add</button>
       </form>
     </div>
   </div>

@@ -199,55 +199,88 @@ function renderCounterCard(habit, entry, date) {
   return wrapWithSwipeToDelete(card, habit, date);
 }
 
-// --- Swipe-to-delete, with Google-Calendar-style recurrence scope ---
-const SWIPE_REVEAL_WIDTH = 76;
+// --- Swipe actions (edit + delete), with Google-Calendar-style recurrence scope ---
+// Direction is locked on the first few pixels of movement: a mostly-vertical
+// drag is left alone entirely (so page scroll is never hijacked), only a
+// clearly horizontal drag engages the swipe.
+const SWIPE_REVEAL_WIDTH = 140;
+const SWIPE_LOCK_THRESHOLD = 6;
 let pendingDeleteHabit = null;
 let pendingDeleteDate = null;
+let closeOpenSwipe = null;
 
 function wrapWithSwipeToDelete(card, habit, date) {
   const wrapper = document.createElement("div");
   wrapper.className = "swipe-wrapper";
-  wrapper.innerHTML = `<div class="swipe-delete-bg"><span class="swipe-delete-icon">🗑️</span></div>`;
+  wrapper.innerHTML = `
+    <div class="swipe-actions">
+      <button type="button" class="swipe-action-btn edit" aria-label="Edit ${habit.label}">✏️<span>Edit</span></button>
+      <button type="button" class="swipe-action-btn delete" aria-label="Delete ${habit.label}">🗑️<span>Delete</span></button>
+    </div>
+  `;
   wrapper.appendChild(card);
 
   let startX = 0;
+  let startY = 0;
   let baseX = 0;
-  let dragging = false;
+  let locked = null; // null | "horizontal" | "vertical"
   let revealed = false;
 
-  function setX(x) {
+  function setX(x, animated) {
+    card.classList.toggle("snapping", !!animated);
     card.style.transform = x ? `translateX(${x}px)` : "";
+  }
+
+  function close(animated) {
+    revealed = false;
+    setX(0, animated !== false);
+    if (closeOpenSwipe === close) closeOpenSwipe = null;
   }
 
   card.addEventListener("pointerdown", (e) => {
     if (e.target.closest("button, input")) return;
     startX = e.clientX;
+    startY = e.clientY;
     baseX = revealed ? -SWIPE_REVEAL_WIDTH : 0;
-    dragging = true;
-    card.classList.add("dragging");
-    card.setPointerCapture(e.pointerId);
+    locked = null;
   });
 
   card.addEventListener("pointermove", (e) => {
-    if (!dragging) return;
-    const x = Math.max(-SWIPE_REVEAL_WIDTH, Math.min(0, baseX + (e.clientX - startX)));
-    setX(x);
+    if (startX === 0 && startY === 0) return;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    if (!locked) {
+      if (Math.abs(dx) < SWIPE_LOCK_THRESHOLD && Math.abs(dy) < SWIPE_LOCK_THRESHOLD) return;
+      locked = Math.abs(dx) > Math.abs(dy) ? "horizontal" : "vertical";
+      if (locked === "horizontal") {
+        if (closeOpenSwipe && closeOpenSwipe !== close) closeOpenSwipe();
+        card.classList.add("dragging");
+        card.setPointerCapture(e.pointerId);
+      }
+    }
+    if (locked !== "horizontal") return;
+    setX(Math.max(-SWIPE_REVEAL_WIDTH, Math.min(0, baseX + dx)), false);
   });
 
   function endDrag(e) {
-    if (!dragging) return;
-    dragging = false;
+    const wasHorizontal = locked === "horizontal";
+    locked = null;
+    if (!wasHorizontal) return;
     card.classList.remove("dragging");
-    card.classList.add("snapping");
     const endX = baseX + (e.clientX - startX);
     revealed = endX < -SWIPE_REVEAL_WIDTH / 2;
-    setX(revealed ? -SWIPE_REVEAL_WIDTH : 0);
-    setTimeout(() => card.classList.remove("snapping"), 200);
+    setX(revealed ? -SWIPE_REVEAL_WIDTH : 0, true);
+    closeOpenSwipe = revealed ? close : null;
   }
   card.addEventListener("pointerup", endDrag);
   card.addEventListener("pointercancel", endDrag);
 
-  wrapper.querySelector(".swipe-delete-bg").addEventListener("click", () => {
+  wrapper.querySelector(".swipe-action-btn.edit").addEventListener("click", () => {
+    close();
+    openEditTaskModal(habit);
+  });
+  wrapper.querySelector(".swipe-action-btn.delete").addEventListener("click", () => {
+    close();
     openDeleteScope(habit, date);
   });
 
@@ -332,7 +365,11 @@ function renderToday() {
   if (!tasks.length) {
     listEl.innerHTML = `<div class="app-footer" style="margin-top:24px;">Nothing scheduled for this day yet. Tap + to add a habit or task.</div>`;
   } else {
-    tasks.forEach((habit) => {
+    // Done habits sink to the bottom so what's left to do stays up top.
+    const sortedTasks = tasks
+      .slice()
+      .sort((a, b) => (isCompleted(a, entries[a.id]) ? 1 : 0) - (isCompleted(b, entries[b.id]) ? 1 : 0));
+    sortedTasks.forEach((habit) => {
       const entry = entries[habit.id];
       const card = habit.type === "counter" ? renderCounterCard(habit, entry, selectedDate) : renderCheckCard(habit, entry, selectedDate);
       listEl.appendChild(card);
@@ -362,6 +399,20 @@ function showTab(tab) {
   if (tab === "tracker" && typeof renderTrackerTab === "function") renderTrackerTab();
   if (tab === "sleep" && typeof renderSleepTab === "function") renderSleepTab();
   if (tab === "insights" && typeof renderInsightsTab === "function") renderInsightsTab();
+}
+
+function initWeekNav() {
+  document.getElementById("weekPrev").addEventListener("click", () => {
+    selectedDate = addDays(selectedDate, -7);
+    renderToday();
+  });
+  document.getElementById("weekNext").addEventListener("click", () => {
+    selectedDate = addDays(selectedDate, 7);
+    renderToday();
+  });
+  document.getElementById("taskList").addEventListener("pointerdown", (e) => {
+    if (closeOpenSwipe && !e.target.closest(".swipe-actions")) closeOpenSwipe();
+  });
 }
 
 function initBottomNav() {
@@ -408,6 +459,7 @@ const initialState = getState();
 selectedDate = initialState.date;
 initOpeningScreen();
 initBottomNav();
+initWeekNav();
 initAddTaskButton();
 initDayEditor();
 initAddTask();

@@ -249,7 +249,9 @@ function setEntryForDate(date, habitId, patch) {
 
 function addHabit({ label, emoji, type, schedule, target, unitMl }) {
   const state = getState();
-  const id = "habit-" + Date.now().toString(36);
+  // Date.now() alone can collide when habits are created in fast succession
+  // (same millisecond), silently merging two habits' entries — add randomness.
+  const id = "habit-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8);
   const color = COLOR_THEME_KEYS[state.habits.length % COLOR_THEME_KEYS.length];
   const base = {
     id,
@@ -277,6 +279,33 @@ function addHabit({ label, emoji, type, schedule, target, unitMl }) {
   state.habits.push(habit);
   ALL_HABITS = state.habits;
   if (isScheduledForDate(habit, state.date)) state.entries[id] = defaultEntry(habit);
+  markDirty(state, "__habits__");
+  saveRaw(state);
+  return state;
+}
+
+// Edits an existing habit in place (name, emoji, schedule, target) without
+// touching its id, color, or any past entries/history.
+function updateHabit(habitId, { label, emoji, schedule, target, unitMl }) {
+  const state = getState();
+  const habit = state.habits.find((h) => h.id === habitId);
+  if (!habit) return state;
+
+  if (label != null) habit.label = label;
+  if (emoji != null) habit.emoji = emoji;
+  if (schedule != null) habit.schedule = schedule;
+  if (habit.type === "counter") {
+    if (target != null) {
+      habit.target = Math.max(1, target);
+      habit.completionThreshold = Math.max(1, target);
+    }
+    if (unitMl != null) habit.unitMl = unitMl;
+  }
+
+  ALL_HABITS = state.habits;
+  if (isScheduledForDate(habit, state.date) && !(habitId in state.entries)) {
+    state.entries[habitId] = defaultEntry(habit);
+  }
   markDirty(state, "__habits__");
   saveRaw(state);
   return state;
