@@ -79,13 +79,47 @@ function renderTrackerWeekly(state, container) {
     .join("");
 
   const metPct = totalScheduled ? Math.round((totalDone / totalScheduled) * 100) : 0;
-  let bestDayIdx = 0;
-  perDayDone.forEach((d, i) => {
-    if (d > perDayDone[bestDayIdx]) bestDayIdx = i;
-  });
-  const bestDayLabel = perDayScheduled[bestDayIdx]
-    ? new Date(weekDates[bestDayIdx] + "T00:00:00").toLocaleDateString(undefined, { weekday: "short" })
-    : "—";
+
+  // "Best day" compares completion *rate* (not raw count, so a light day with
+  // 1/1 habits done doesn't lose to a busy day with 3/5) and calls out ties
+  // instead of silently picking the earliest day.
+  const dayFractions = weekDates.map((d, i) => (perDayScheduled[i] ? perDayDone[i] / perDayScheduled[i] : -1));
+  const maxFraction = Math.max(...dayFractions);
+  let bestDayLabel = "—";
+  if (maxFraction > 0) {
+    const tiedIdxs = dayFractions.reduce((acc, f, i) => (f === maxFraction ? acc.concat(i) : acc), []);
+    if (tiedIdxs.length === 1) {
+      bestDayLabel = new Date(weekDates[tiedIdxs[0]] + "T00:00:00").toLocaleDateString(undefined, { weekday: "short" });
+    } else {
+      // Tiebreak: whichever tied day finished all its scheduled habits
+      // earliest after midnight. "Time since midnight" (not raw epoch ms) so
+      // different calendar days compare fairly. Falls back to "N tied" if any
+      // tied day predates completedAt tracking (no timestamp recorded).
+      const finishOffsets = tiedIdxs.map((i) => {
+        const date = weekDates[i];
+        const midnight = new Date(date + "T00:00:00").getTime();
+        const entries = getEntriesForDate(state, date) || {};
+        const scheduledHabits = habits.filter((h) => isScheduledForDate(h, date));
+        let latest = -Infinity;
+        for (const h of scheduledHabits) {
+          const entry = entries[h.id];
+          if (!isCompleted(h, entry)) continue;
+          if (!entry || !entry.completedAt) return null;
+          latest = Math.max(latest, entry.completedAt - midnight);
+        }
+        return latest;
+      });
+      if (finishOffsets.every((t) => t != null)) {
+        let winnerPos = 0;
+        finishOffsets.forEach((t, pos) => {
+          if (t < finishOffsets[winnerPos]) winnerPos = pos;
+        });
+        bestDayLabel = new Date(weekDates[tiedIdxs[winnerPos]] + "T00:00:00").toLocaleDateString(undefined, { weekday: "short" });
+      } else {
+        bestDayLabel = `${tiedIdxs.length} tied`;
+      }
+    }
+  }
 
   container.innerHTML = `
     <div style="text-align:center; font-size:10px; color:var(--muted-2); margin-bottom:10px;">${weekRangeLabel(monday)}</div>

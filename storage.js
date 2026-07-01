@@ -229,15 +229,30 @@ function getEntriesForDate(state, date) {
   return state.history[date] || null;
 }
 
+// Stamps completedAt the moment an entry transitions to completed (cleared
+// if it's un-checked), used to break "Best day" ties by whichever tied day
+// finished all its habits earliest — see tracker.js.
+function withCompletionStamp(habit, previousEntry, nextEntry) {
+  const wasCompleted = isCompleted(habit, previousEntry);
+  const nowCompleted = isCompleted(habit, nextEntry);
+  if (nowCompleted && !wasCompleted) return { ...nextEntry, completedAt: Date.now() };
+  if (!nowCompleted && wasCompleted) return { ...nextEntry, completedAt: null };
+  return nextEntry;
+}
+
 function setEntryForDate(date, habitId, patch) {
   const state = getState();
   const habit = ALL_HABITS.find((h) => h.id === habitId);
   if (!habit) return state;
   if (date === state.date) {
-    state.entries[habitId] = { ...(state.entries[habitId] || defaultEntry(habit)), ...patch };
+    const previous = state.entries[habitId] || defaultEntry(habit);
+    const next = { ...previous, ...patch };
+    state.entries[habitId] = withCompletionStamp(habit, previous, next);
   } else {
     const bucket = state.history[date] || {};
-    bucket[habitId] = { ...(bucket[habitId] || defaultEntry(habit)), ...patch };
+    const previous = bucket[habitId] || defaultEntry(habit);
+    const next = { ...previous, ...patch };
+    bucket[habitId] = withCompletionStamp(habit, previous, next);
     state.history[date] = bucket;
   }
   markDirty(state, date);
