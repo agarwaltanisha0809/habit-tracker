@@ -22,7 +22,14 @@ function dayEditorRow(habit, entry) {
   if (habit.type === "sleep") {
     return `
       <div class="bento-card" style="${style} margin-bottom:8px;" data-habit="${habit.id}">
-        <div>${habit.emoji} ${habit.label}: ${entry.hours ? entry.hours + "h" : "not logged"}</div>
+        <div style="display:flex; align-items:center; justify-content:space-between;">
+          <div>${habit.emoji} ${habit.label}</div>
+          <div style="display:flex; align-items:center; gap:6px;">
+            <input type="number" step="0.1" min="0" max="24" class="settings-value-pill" data-action="hours"
+              value="${entry.hours || 0}" style="width:60px; text-align:center;" />
+            <span style="font-size:12px;">h</span>
+          </div>
+        </div>
         <input type="text" class="task-note-input" data-action="note" placeholder="Add a note" value="${note}" maxlength="140" />
       </div>`;
   }
@@ -89,6 +96,15 @@ function openDayEditor(date) {
         setEntryForDate(date, habitId, { count: count + 1 });
         if (typeof refreshApp === "function") refreshApp();
         openDayEditor(date);
+      });
+    }
+
+    const hoursInput = row.querySelector('[data-action="hours"]');
+    if (hoursInput) {
+      hoursInput.addEventListener("change", () => {
+        const hours = Math.max(0, parseFloat(hoursInput.value) || 0);
+        setEntryForDate(date, habitId, { hours });
+        if (typeof refreshApp === "function") refreshApp();
       });
     }
 
