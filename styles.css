@@ -133,10 +133,10 @@ button {
   justify-content: space-between;
   gap: 8px;
   flex-shrink: 0;
-  /* The app runs edge-to-edge under the iOS status bar/notch/Dynamic Island
-     (apple-mobile-web-app-status-bar-style is black-translucent), so this
-     needs real top padding or content renders shoved up underneath it. */
-  padding: calc(10px + env(safe-area-inset-top)) 18px 4px;
+  /* status-bar-style is "black" (opaque, non-translucent) so iOS reserves
+     the status bar area natively and content starts below it — this is
+     just a floor in case any environment still reports a safe-area inset. */
+  padding: max(10px, env(safe-area-inset-top)) 18px 4px;
 }
 
 /* Today view: title + week strip + add/ring row stay put; only the task
