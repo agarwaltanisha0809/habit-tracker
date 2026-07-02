@@ -473,12 +473,21 @@ function scheduleMidnightReset() {
   }, msUntilMidnight);
 }
 
+// Auto-refresh the moment a new deployment takes over. sw.js unconditionally
+// skipWaiting()s and claims clients, so the only thing missing was reloading
+// the already-open page to pick up the new HTML/JS — without this, the app
+// could silently keep running old code (including old safety checks) until
+// someone manually force-quit or reinstalled, which is genuinely destructive
+// on iOS (deleting the Home Screen icon wipes that app's local storage).
 function initServiceWorker() {
-  if ("serviceWorker" in navigator) {
-    window.addEventListener("load", () => {
-      navigator.serviceWorker.register("sw.js").catch(() => {});
-    });
-  }
+  if (!("serviceWorker" in navigator)) return;
+  const hadController = !!navigator.serviceWorker.controller;
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch(() => {});
+  });
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (hadController) location.reload();
+  });
 }
 
 // --- Init ---
