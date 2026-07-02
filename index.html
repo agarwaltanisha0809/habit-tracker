@@ -115,6 +115,21 @@
     </div>
   </div>
 
+  <!-- Generic confirmation modal, for any action that would destroy data -->
+  <div id="confirmModal" class="modal-overlay" hidden>
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Are you sure?</h3>
+        <button id="confirmModalClose" class="icon-btn" aria-label="Close">✕</button>
+      </div>
+      <p id="confirmModalMessage" style="color:var(--muted); font-size:14px; margin: 0 0 16px;"></p>
+      <div class="delete-scope-options">
+        <button type="button" class="schedule-option danger" id="confirmModalConfirm" style="width:100%;">Yes, continue</button>
+        <button type="button" class="schedule-option" id="confirmModalCancel" style="width:100%;">Cancel</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Delete-scope modal, shown when swiping to delete a recurring habit -->
   <div id="deleteScopeModal" class="modal-overlay" hidden>
     <div class="modal-card">

@@ -114,11 +114,25 @@ function renderSleepTab() {
   `;
   document.getElementById("sleepActionBtn").addEventListener("click", (e) => {
     const action = e.currentTarget.dataset.action;
-    if (action === "start") startSleep("sleep");
-    else if (action === "end") endSleep("sleep");
-    else resetSleep("sleep");
-    renderSleepTab();
-    if (typeof refreshApp === "function") refreshApp();
+    if (action === "start") {
+      startSleep("sleep");
+      renderSleepTab();
+      if (typeof refreshApp === "function") refreshApp();
+    } else if (action === "end") {
+      endSleep("sleep");
+      renderSleepTab();
+      if (typeof refreshApp === "function") refreshApp();
+    } else {
+      // "Log again" would otherwise silently overwrite the already-recorded
+      // hours for today with a blank slate — guard it, since there's no undo.
+      const current = getState().entries.sleep;
+      const hoursText = current && current.hours ? `${current.hours}h` : "the recorded";
+      confirmAction(`This clears the ${hoursText} sleep already logged for today so you can start a new entry. Continue?`, () => {
+        resetSleep("sleep");
+        renderSleepTab();
+        if (typeof refreshApp === "function") refreshApp();
+      });
+    }
   });
 
   const bubbleRow = document.getElementById("sleepBubbleRow");

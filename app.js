@@ -324,6 +324,35 @@ function initDeleteScopeModal() {
   });
 }
 
+// Generic "are you sure?" gate for any action that would destroy real data
+// (e.g. re-logging sleep over an already-completed night). Call as
+// confirmAction("message", () => doTheThing()).
+let pendingConfirmCallback = null;
+
+function confirmAction(message, onConfirm) {
+  document.getElementById("confirmModalMessage").textContent = message;
+  pendingConfirmCallback = onConfirm;
+  document.getElementById("confirmModal").hidden = false;
+}
+
+function initConfirmModal() {
+  const modal = document.getElementById("confirmModal");
+  const close = () => {
+    modal.hidden = true;
+    pendingConfirmCallback = null;
+  };
+  document.getElementById("confirmModalClose").addEventListener("click", close);
+  document.getElementById("confirmModalCancel").addEventListener("click", close);
+  modal.addEventListener("click", (e) => {
+    if (e.target.id === "confirmModal") close();
+  });
+  document.getElementById("confirmModalConfirm").addEventListener("click", () => {
+    const callback = pendingConfirmCallback;
+    close();
+    if (callback) callback();
+  });
+}
+
 function burstAnimation(el, justCompleted) {
   if (!justCompleted) return;
   el.classList.remove("burst");
@@ -464,6 +493,7 @@ initAddTaskButton();
 initDayEditor();
 initAddTask();
 initDeleteScopeModal();
+initConfirmModal();
 initSettingsPanel();
 initInsightsNav();
 initServiceWorker();
