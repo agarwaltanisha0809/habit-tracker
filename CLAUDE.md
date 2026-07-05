@@ -4,6 +4,17 @@ A calendar-based habit and task tracker. Vanilla JS/HTML/CSS, no build step, no
 framework. Deployed as a PWA on GitHub Pages, with optional Firebase Firestore
 sync between devices.
 
+**Starting a new chat to keep working on this?** Good — that's the intended
+workflow. This file plus git history is the actual persistent record of the
+project; no need to carry over old chat context. Just point a fresh session at
+this folder and it'll pick up everything it needs from here.
+
+**Never tell the user to delete the Home Screen icon and re-add it to "fix"
+something.** iOS gives installed Home Screen web apps isolated storage, and
+deleting the icon wipes it — this already caused real data loss once. The app
+now auto-refreshes itself when a new version deploys (see app.js
+`initServiceWorker`), so reinstalling should never be necessary again.
+
 ## Live deployment
 
 - App: https://agarwaltanisha0809.github.io/habit-tracker/
@@ -52,20 +63,25 @@ To deploy a change: commit and `git push origin main`. GitHub Pages picks it up 
 - **No em dashes anywhere** — in UI copy or in chat responses to this user. Confirmed preference.
 - **No Tabler icon font or other web fonts in the real app** — that's only available inside the Claude mockup/visualize sandbox tool. The real app uses plain emoji for all icons.
 - Water/counter habits use an actual SVG glass-fill graphic (`ui.js:glassSvg`) when `habit.unitMl` is set; plain counters (no `unitMl`) show a generic icon badge instead.
-- Swipe gesture on habit cards is direction-locked (checks first ~6px of movement before committing to horizontal vs vertical) specifically to avoid hijacking page scroll — don't simplify this back to a naive drag handler.
+- Swipe gesture on habit cards is direction-locked (checks first ~6px of movement before committing to horizontal vs vertical) specifically to avoid hijacking page scroll — don't simplify this back to a naive drag handler. Swiping now reveals two actions, Edit and Delete, not just Delete.
 - Deleting a recurring habit always asks scope (just this day / this and following / all days), matching Google Calendar's pattern. Only `schedule.kind === "once"` skips the prompt and deletes immediately.
 - App shell layout is fixed-position (`html, body { overflow: hidden }`, `.app-shell` is `position: fixed; inset: 0`) with only `.app-scroll-area` scrolling — this was a deliberate fix for iOS Safari's bounce-scroll dragging `position: fixed` elements around. Don't revert to a simpler scrolling-body layout without re-testing on an actual iOS device.
+- `apple-mobile-web-app-status-bar-style` must stay `"black"` (opaque), not `"black-translucent"` — translucent drew the top bar under the iOS status bar/notch and caused visible icon overlap on a real device. The `.top-bar` padding-top (`max(10px, env(safe-area-inset-top))`) is just a floor on top of that, not the actual fix.
+- Any state-mutating change to `storage.js` should route through the generic `confirmAction()` modal (in app.js) if it can destroy data the user didn't just create in this action — this is why `resetSleep()` is gated. A prior version silently wiped a night's sleep data with a single tap and no way back.
+- Best Day (tracker.js) compares completion *rate* (done/scheduled) across days first, then tiebreaks by earliest `completedAt` timestamp (stamped by `withCompletionStamp()` in storage.js whenever an entry transitions to completed) — not raw completion count, and not calendar order. Falls back to "N tied" if timestamp data is missing for a tied day (e.g. entries predating this feature).
+- **Two independent data-safety nets exist**: Firestore sync auto-resumes on load (`initSyncOnLoad()` is called from app.js's init sequence — it used to be defined but never invoked, which was a real bug), and a manual JSON export/import lives in Settings → Backup (`exportBackup()`/`importBackup()` in storage.js). Don't remove either without replacing it with something equally durable.
+- **Never commit the user's real Firestore sync code to this repo.** The repo is public (required for free GitHub Pages hosting) and Firestore rules are open/test-mode, so the sync code is effectively a password. `scriptable-widget.js` in git must always keep `const SYNC_CODE = "PASTE_YOUR_SYNC_CODE_HERE";` as a placeholder. The user's real code lives only in a local, non-committed copy (`~/Desktop/Habits.txt`) and directly inside the Scriptable app on their phone.
 
 ## Open items / not yet finished
 
-1. **Web Push notifications** — client code (`push.js`, `sw.js` push handler) and the Cloud Function (`functions/index.js`) are written but **not deployed**. To finish:
-   - Upgrade the Firebase project to the Blaze (pay-as-you-go) plan — still free at this scale, just needs a card on file
-   - `cd functions && npm install`
-   - `firebase functions:secrets:set VAPID_PRIVATE_KEY` (the private key is in the agent's memory of this build, not committed anywhere — regenerate with `npx web-push generate-vapid-keys` if lost, and update `VAPID_PUBLIC_KEY` in both `push.js` and `functions/index.js` to match)
+1. **Web Push notifications** — client code (`push.js`, `sw.js` push handler) and the Cloud Function (`functions/index.js`) are written, Firebase CLI login is complete, but deployment is **blocked on the user upgrading the Firebase project to the Blaze (pay-as-you-go) plan** (still free at this scale, just needs a card on file): https://console.firebase.google.com/project/habit-tracker-667bc/usage/details. Once that's done:
+   - `cd functions && npm install` (firebase-tools itself is installed locally/unsaved via `npm install --no-save firebase-tools`, not in package.json)
+   - `firebase functions:secrets:set VAPID_PRIVATE_KEY` (regenerate with `npx web-push generate-vapid-keys` if the original was lost, and update `VAPID_PUBLIC_KEY` in both `push.js` and `functions/index.js` to match)
    - `firebase deploy --only functions`
    - Push only works once the user has Sync turned on (the Cloud Function reads Firestore, which only has data once synced)
-2. **Scriptable widget** — `scriptable-widget.js` is ready to paste into the free Scriptable iOS app. User needs to fill in their own `SYNC_CODE` at the top of the script once they've enabled Sync.
+2. **Scriptable widget** — `scriptable-widget.js` works. Two real bugs were found and fixed during testing: `widget.presentSmall()` needed `await` before `Script.complete()` (was rendering nothing in interactive preview), and the two Firestore fetches needed to run in parallel via `Promise.all()` instead of sequentially (sequential fetches blew past iOS's background-widget execution time budget, producing a blank widget once actually placed on the Home Screen — even though the same script worked fine in the interactive test/preview mode). User should confirm the fix holds on their actual Home Screen placement if not already done.
 3. **Going public / monetizing** — discussed but intentionally not started. Would need real auth (current sync is an open 6-char code, fine for personal use, not for strangers), Stripe or StoreKit for payments, and a privacy policy. Recommended path if this comes up again: web-first with real accounts + Stripe, not an App Store submission (PWA wrappers risk App Review rejection under "minimum functionality").
+4. **AI assistant features** — brainstormed at length (categorized ideas: smart nudges/insights, natural-language habit logging, adaptive scheduling suggestions, etc.) but no direction has been chosen and nothing has been built. Purely exploratory — ask the user which direction (if any) they want to pursue before building anything here.
 
 ## Testing notes
 
