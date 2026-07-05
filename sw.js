@@ -1,5 +1,5 @@
 // App-shell cache so the tracker still opens (and your data is still readable) offline.
-const CACHE_NAME = "habit-tracker-v11";
+const CACHE_NAME = "habit-tracker-v12";
 const ASSETS = [
   "./",
   "./index.html",

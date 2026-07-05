@@ -505,6 +505,7 @@ initDeleteScopeModal();
 initConfirmModal();
 initSettingsPanel();
 initInsightsNav();
+if (typeof initSyncOnLoad === "function") initSyncOnLoad();
 initServiceWorker();
 showTab("today");
 scheduleMidnightReset();

@@ -245,4 +245,41 @@ function initSettingsPanel() {
   initNotifications();
   initSleepGoalStepper();
   initProfileName();
+  initBackup();
+}
+
+function initBackup() {
+  const exportBtn = document.getElementById("exportBackupBtn");
+  const importBtn = document.getElementById("importBackupBtn");
+  const fileInput = document.getElementById("importBackupInput");
+  if (!exportBtn) return;
+
+  exportBtn.addEventListener("click", () => {
+    const blob = new Blob([exportBackup()], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `habits-backup-${todayKey()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  importBtn.addEventListener("click", () => fileInput.click());
+  fileInput.addEventListener("change", () => {
+    const file = fileInput.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      confirmAction("This replaces everything currently in the app with the backup file. Continue?", () => {
+        try {
+          importBackup(reader.result);
+          location.reload();
+        } catch (e) {
+          alert(e.message || "Couldn't read that backup file.");
+        }
+      });
+    };
+    reader.readAsText(file);
+    fileInput.value = "";
+  });
 }

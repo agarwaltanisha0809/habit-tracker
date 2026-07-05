@@ -10,6 +10,21 @@ const TRACKER_LOOKBACK_DAYS = 30;
 const TRACKER_MIN_COMPLETIONS = 12; // roughly 3x/week over 30 days
 const TRACKER_BOOTSTRAP_DAYS = 14; // new habits stay visible until they have enough history
 
+// Manual backup — a plain JSON export/import independent of Sync, so there's
+// always a way to save your data yourself (e.g. before clearing Safari data,
+// updating iOS, or anything else that could evict local storage).
+function exportBackup() {
+  return localStorage.getItem(STORAGE_KEY) || "{}";
+}
+
+function importBackup(jsonString) {
+  const parsed = JSON.parse(jsonString); // throws on invalid input, caller should catch
+  if (!parsed || typeof parsed !== "object" || !Array.isArray(parsed.habits)) {
+    throw new Error("This doesn't look like a Habits backup file.");
+  }
+  localStorage.setItem(STORAGE_KEY, jsonString);
+}
+
 let ALL_HABITS = [];
 function getHabits() {
   return ALL_HABITS;

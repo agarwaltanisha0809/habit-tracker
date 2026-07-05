@@ -12,7 +12,7 @@
 //    pick this script. Small/medium works on the Home Screen; the circular
 //    style works on the iOS 16+ Lock Screen.
 
-const SYNC_CODE = "PASTE_YOUR_SYNC_CODE_HERE";
+const SYNC_CODE = "22DWNP";
 const APP_URL = "https://agarwaltanisha0809.github.io/habit-tracker/";
 const PROJECT_ID = "habit-tracker-667bc";
 
@@ -58,9 +58,14 @@ async function fetchDoc(path) {
 }
 
 async function getProgress() {
-  const habitsDoc = await fetchDoc(`syncs/${SYNC_CODE}/meta/habits`);
+  // Run both requests at once — a background widget refresh has a tight time
+  // budget, and iOS silently kills the script (blank widget, no error shown)
+  // if two sequential round-trips take too long.
+  const [habitsDoc, todayDoc] = await Promise.all([
+    fetchDoc(`syncs/${SYNC_CODE}/meta/habits`),
+    fetchDoc(`syncs/${SYNC_CODE}/days/${todayKey()}`),
+  ]);
   const habits = (habitsDoc && habitsDoc.habits) || [];
-  const todayDoc = await fetchDoc(`syncs/${SYNC_CODE}/days/${todayKey()}`);
   const entries = (todayDoc && todayDoc.entries) || {};
 
   const relevant = habits.filter((h) => h.type !== "sleep");
@@ -125,6 +130,8 @@ const widget = await buildWidget();
 if (config.runsInWidget) {
   Script.setWidget(widget);
 } else {
-  widget.presentSmall();
+  // Must be awaited — otherwise Script.complete() below can tear the script
+  // down before the preview sheet has actually finished presenting.
+  await widget.presentSmall();
 }
 Script.complete();
