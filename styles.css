@@ -1382,7 +1382,7 @@ button {
 /* Compact "widget mode": when the window is shrunk down small (e.g. kept
    open on the desktop like a sticky note), drop everything except the task
    list itself so the limited space goes to seeing/checking off tasks. */
-@media (max-width: 300px), (max-height: 380px) {
+@media (max-width: 460px), (max-height: 560px) {
   .top-bar,
   .week-nav-row,
   .home-header-row,
