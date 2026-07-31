@@ -1378,3 +1378,35 @@ button {
     padding: 16px 14px 90px;
   }
 }
+
+/* Compact "widget mode": when the window is shrunk down small (e.g. kept
+   open on the desktop like a sticky note), drop everything except the task
+   list itself so the limited space goes to seeing/checking off tasks. */
+@media (max-width: 300px), (max-height: 380px) {
+  .top-bar,
+  .week-nav-row,
+  .home-header-row,
+  .bottom-nav {
+    display: none !important;
+  }
+
+  .today-sticky-header {
+    padding-top: max(8px, env(safe-area-inset-top));
+  }
+
+  .screen-title-wrap.no-sticky {
+    padding-bottom: 4px;
+  }
+
+  .screen-title {
+    font-size: 15px;
+  }
+
+  .app {
+    padding: 0 12px 12px;
+  }
+
+  .app-scroll-area {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
