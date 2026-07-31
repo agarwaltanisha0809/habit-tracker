@@ -1409,4 +1409,38 @@ button {
   .app-scroll-area {
     padding-bottom: env(safe-area-inset-bottom);
   }
+
+  /* Shrink each task row too, so more of them fit without scrolling. */
+  .task-list {
+    gap: 6px;
+  }
+
+  .bento-card {
+    padding: 7px 10px;
+    border-radius: 11px;
+  }
+
+  .task-card {
+    gap: 8px;
+  }
+
+  .task-icon-badge {
+    width: 22px;
+    height: 22px;
+    font-size: 11px;
+  }
+
+  .task-checkbox {
+    width: 19px;
+    height: 19px;
+  }
+
+  .task-title {
+    font-size: 12.5px;
+  }
+
+  .task-sub,
+  .task-note-input {
+    display: none;
+  }
 }
