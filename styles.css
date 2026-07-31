@@ -1379,68 +1379,72 @@ button {
   }
 }
 
-/* Compact "widget mode": when the window is shrunk down small (e.g. kept
-   open on the desktop like a sticky note), drop everything except the task
-   list itself so the limited space goes to seeing/checking off tasks. */
-@media (max-width: 460px), (max-height: 560px) {
-  .top-bar,
-  .week-nav-row,
-  .home-header-row,
-  .bottom-nav {
-    display: none !important;
-  }
+/* Compact "widget mode": when the window is shrunk down small on a real
+   desktop (e.g. kept open on the Mac desktop like a sticky note), drop
+   everything except the task list so the limited space goes to seeing/
+   checking off tasks. Applied via the .compact-widget class on <body>,
+   toggled from app.js — NOT a raw media query. A width/height breakpoint
+   alone would also match a normal iPhone screen (iPhones are narrower than
+   460px), which once hid the nav bar and shrank task cards on mobile too.
+   The JS gate requires a non-touch pointer (real desktop with a mouse)
+   before this can apply, so phones are never affected. */
+body.compact-widget .top-bar,
+body.compact-widget .week-nav-row,
+body.compact-widget .home-header-row,
+body.compact-widget .bottom-nav {
+  display: none !important;
+}
 
-  .today-sticky-header {
-    padding-top: max(8px, env(safe-area-inset-top));
-  }
+body.compact-widget .today-sticky-header {
+  padding-top: max(8px, env(safe-area-inset-top));
+}
 
-  .screen-title-wrap.no-sticky {
-    padding-bottom: 4px;
-  }
+body.compact-widget .screen-title-wrap.no-sticky {
+  padding-bottom: 4px;
+}
 
-  .screen-title {
-    font-size: 15px;
-  }
+body.compact-widget .screen-title {
+  font-size: 15px;
+}
 
-  .app {
-    padding: 0 12px 12px;
-  }
+body.compact-widget .app {
+  padding: 0 12px 12px;
+}
 
-  .app-scroll-area {
-    padding-bottom: env(safe-area-inset-bottom);
-  }
+body.compact-widget .app-scroll-area {
+  padding-bottom: env(safe-area-inset-bottom);
+}
 
-  /* Shrink each task row too, so more of them fit without scrolling. */
-  .task-list {
-    gap: 6px;
-  }
+/* Shrink each task row too, so more of them fit without scrolling. */
+body.compact-widget .task-list {
+  gap: 6px;
+}
 
-  .bento-card {
-    padding: 7px 10px;
-    border-radius: 11px;
-  }
+body.compact-widget .bento-card {
+  padding: 7px 10px;
+  border-radius: 11px;
+}
 
-  .task-card {
-    gap: 8px;
-  }
+body.compact-widget .task-card {
+  gap: 8px;
+}
 
-  .task-icon-badge {
-    width: 22px;
-    height: 22px;
-    font-size: 11px;
-  }
+body.compact-widget .task-icon-badge {
+  width: 22px;
+  height: 22px;
+  font-size: 11px;
+}
 
-  .task-checkbox {
-    width: 19px;
-    height: 19px;
-  }
+body.compact-widget .task-checkbox {
+  width: 19px;
+  height: 19px;
+}
 
-  .task-title {
-    font-size: 12.5px;
-  }
+body.compact-widget .task-title {
+  font-size: 12.5px;
+}
 
-  .task-sub,
-  .task-note-input {
-    display: none;
-  }
+body.compact-widget .task-sub,
+body.compact-widget .task-note-input {
+  display: none;
 }

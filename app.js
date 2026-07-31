@@ -490,6 +490,18 @@ function initServiceWorker() {
   });
 }
 
+// Compact "widget mode" only applies on a real desktop with a mouse, shrunk
+// small — never on a touchscreen phone, no matter how narrow its screen is.
+function initCompactWidgetMode() {
+  const isDesktopPointer = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+  function update() {
+    const isSmall = window.innerWidth <= 460 || window.innerHeight <= 560;
+    document.body.classList.toggle("compact-widget", isDesktopPointer && isSmall);
+  }
+  update();
+  window.addEventListener("resize", update);
+}
+
 // --- Init ---
 
 initTheme();
@@ -507,5 +519,6 @@ initSettingsPanel();
 initInsightsNav();
 if (typeof initSyncOnLoad === "function") initSyncOnLoad();
 initServiceWorker();
+initCompactWidgetMode();
 showTab("today");
 scheduleMidnightReset();
