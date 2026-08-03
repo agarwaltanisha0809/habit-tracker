@@ -484,7 +484,7 @@ button {
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  border: 1.8px solid var(--tone-accent, var(--muted));
+  border: 1.8px solid var(--tone-accent-2, var(--tone-accent, var(--muted)));
   background: transparent;
   flex-shrink: 0;
   cursor: pointer;
@@ -496,7 +496,7 @@ button {
 }
 
 .task-checkbox.done {
-  background: var(--tone-accent, var(--muted));
+  background: var(--tone-accent-2, var(--tone-accent, var(--muted)));
 }
 
 .task-checkbox:active {

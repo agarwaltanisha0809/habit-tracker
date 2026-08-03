@@ -385,10 +385,15 @@ function endHabitRecurrenceFrom(habitId, date) {
 // or drop it, instead of either losing it silently or having it nag forever.
 
 function getOverdueOnceTasks(state) {
+  // Only exactly yesterday's undone tasks are surfaced — not anything older.
+  // A task left undone for a couple of weeks shouldn't keep getting asked
+  // about; it just sits there unfinished, and the user can still bring it
+  // forward manually (the "Tomorrow" swipe action) whenever they want.
+  const yesterday = addDays(state.date, -1);
   return state.habits.filter((h) => {
     if (!h.schedule || h.schedule.kind !== "once") return false;
-    if (h.schedule.date >= state.date) return false; // today or future, not overdue
-    if (h.carryOverDismissedDate === state.date) return false; // already answered for today
+    if (h.schedule.date !== yesterday) return false;
+    if (h.carryOverDismissedDate === state.date) return false; // already answered today
     const entry = state.history[h.schedule.date] && state.history[h.schedule.date][h.id];
     return !isCompleted(h, entry);
   });

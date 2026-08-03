@@ -109,6 +109,10 @@ function applyTone(el, habit) {
   el.style.setProperty("--tone-muted", t.muted);
   el.style.setProperty("--tone-accent", t.accent);
   el.style.setProperty("--tone-badge-bg", t.badgeBg);
+  // Tasks carry a second accent (peach) just for the checkbox, for a bit of
+  // two-tone interest — habits don't set this, so their checkbox falls back
+  // to the single --tone-accent as before.
+  if (t.accent2) el.style.setProperty("--tone-accent-2", t.accent2);
 }
 
 function renderCheckCard(habit, entry, date) {
@@ -575,14 +579,20 @@ const DAY_SWIPE_LOCK_THRESHOLD = 10;
 const DAY_SWIPE_FOLLOW_MAX_PX = 36;
 
 function initDaySwipe() {
+  // Bound to the scroll container, not #view-today itself — a day with few
+  // or no items leaves #view-today shorter than the screen, so a listener
+  // on just that section misses touches in the empty space below the
+  // content. The scroll container always fills the available height.
+  const hitArea = document.getElementById("scrollArea");
   const el = document.getElementById("view-today");
-  if (!el) return;
+  if (!hitArea || !el) return;
   let startX = 0;
   let startY = 0;
   let dragging = false;
   let locked = null; // null | "horizontal" | "vertical"
 
-  el.addEventListener("pointerdown", (e) => {
+  hitArea.addEventListener("pointerdown", (e) => {
+    if (currentTab !== "today") return;
     if (e.target.closest(".swipe-wrapper, button, input")) return;
     startX = e.clientX;
     startY = e.clientY;
@@ -591,7 +601,7 @@ function initDaySwipe() {
     el.style.transition = "none";
   });
 
-  el.addEventListener("pointermove", (e) => {
+  hitArea.addEventListener("pointermove", (e) => {
     if (!dragging) return;
     const dx = e.clientX - startX;
     const dy = e.clientY - startY;
@@ -621,8 +631,8 @@ function initDaySwipe() {
     }
     triggerDayChangeAnimation(dx < 0 ? 1 : -1);
   }
-  el.addEventListener("pointerup", end);
-  el.addEventListener("pointercancel", () => {
+  hitArea.addEventListener("pointerup", end);
+  hitArea.addEventListener("pointercancel", () => {
     dragging = false;
     el.style.transform = "";
   });
@@ -691,6 +701,11 @@ function initQuickAdd() {
 // choice. Recurring habits never appear here — their own schedule already
 // decides which days they show up on. ---
 function checkCarryOver() {
+  // Late-night use (e.g. still working past midnight) shouldn't get asked
+  // about "today's" tasks in the middle of the night — wait until the first
+  // app open at/after 6am local time to bring this up at all.
+  if (new Date().getHours() < 6) return;
+
   const state = getState();
   const overdue = getOverdueOnceTasks(state);
   if (!overdue.length) return;

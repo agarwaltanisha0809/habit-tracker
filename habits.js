@@ -30,11 +30,13 @@ const COLOR_THEME_KEYS = Object.keys(COLOR_THEMES);
 
 // Fixed visual treatment for one-off tasks (schedule.kind === "once"). Unlike
 // habits, tasks don't rotate through COLOR_THEMES — every task looks the
-// same bright, energetic gold regardless of what it's about, so the eye can
+// same two-tone teal + peach regardless of what it's about, so the eye can
 // bucket "temporary, needs clearing" vs. a habit's muted per-color identity
-// at a glance, without reading any text. See applyTaskTone() in app.js.
-const TASK_THEME = { accent: "#F5B23B", bg: "#3A2607", text: "#FCEFDA", muted: "#F7CD84", badgeBg: "#5C3B0A" };
-const LIGHT_TASK_THEME = { accent: "#9A5B00", bg: "#FDF1DD", text: "#3A2607", muted: "#9A5B00", badgeBg: "#F7CD84" };
+// at a glance, without reading any text. `accent` is the card border/general
+// tint (teal); `accent2` is a second accent used only for the checkbox, for
+// a bit of two-tone visual interest — see applyTone() in app.js.
+const TASK_THEME = { accent: "#5DCAA5", accent2: "#F0997B", bg: "#04342C", text: "#E1F5EE", muted: "#9FE1CB", badgeBg: "#085041" };
+const LIGHT_TASK_THEME = { accent: "#0F6E56", accent2: "#993C1D", bg: "#E1F5EE", text: "#04342C", muted: "#0F6E56", badgeBg: "#9FE1CB" };
 
 function themeForTask() {
   return isLightMode() ? LIGHT_TASK_THEME : TASK_THEME;
