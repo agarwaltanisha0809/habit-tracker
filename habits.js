@@ -28,6 +28,18 @@ const LIGHT_COLOR_THEMES = {
 };
 const COLOR_THEME_KEYS = Object.keys(COLOR_THEMES);
 
+// Fixed visual treatment for one-off tasks (schedule.kind === "once"). Unlike
+// habits, tasks don't rotate through COLOR_THEMES — every task looks the
+// same bright, energetic gold regardless of what it's about, so the eye can
+// bucket "temporary, needs clearing" vs. a habit's muted per-color identity
+// at a glance, without reading any text. See applyTaskTone() in app.js.
+const TASK_THEME = { accent: "#F5B23B", bg: "#3A2607", text: "#FCEFDA", muted: "#F7CD84", badgeBg: "#5C3B0A" };
+const LIGHT_TASK_THEME = { accent: "#9A5B00", bg: "#FDF1DD", text: "#3A2607", muted: "#9A5B00", badgeBg: "#F7CD84" };
+
+function themeForTask() {
+  return isLightMode() ? LIGHT_TASK_THEME : TASK_THEME;
+}
+
 function isLightMode() {
   return document.documentElement.getAttribute("data-theme") === "light";
 }
@@ -44,7 +56,50 @@ const EMOJI_CHOICES = [
   "🏃", "🏋️", "🧘", "🚴", "🥾", "🤸", "⛹️", "🚶",
   "😴", "🌙", "☀️", "🧹", "💰", "📚", "💻", "📞",
   "🌿", "🐾", "❤️", "🙏", "🎯", "✅", "⭐", "🔥",
+  "📝", "📅", "⏰", "📌", "📎", "🗂️", "📮", "✉️",
+  "💼", "🏦", "🧾", "📊", "📈", "💳", "🛒", "🧺",
+  "🧽", "🧼", "🪴", "🌱", "🐶", "🐱", "🚗", "🚲",
+  "✈️", "🏠", "🛠️", "🔧", "🖥️", "🖨️", "📷", "🎬",
+  "🎮", "🎲", "🧩", "🎁", "🎉", "🧵", "🧶", "🪞",
+  "🧴", "💊", "🩺", "🦷", "👟", "👗", "🧳", "🗺️",
+  "🌸", "🌻", "🍀", "🌊", "⛰️", "🌤️", "❄️", "🧊",
+  "🍳", "🥘", "🍲", "🍕", "🍩", "🍫", "🍵", "🧃",
 ];
+
+// Keyword → emoji guesses for the quick-add compose bar. Free, local,
+// no API call — matched as a substring against the lowercased task text.
+// First match wins, so more specific keywords are listed before broader
+// ones. Falls back to a plain checkmark when nothing matches.
+const TASK_EMOJI_KEYWORDS = [
+  [["call", "phone", "ring"], "📞"],
+  [["email", "mail", "inbox"], "✉️"],
+  [["text", "message", "dm"], "💬"],
+  [["meeting", "meet", "sync", "standup"], "🗓️"],
+  [["pay", "bill", "invoice", "rent", "bank"], "🏦"],
+  [["buy", "shop", "grocery", "groceries", "order"], "🛒"],
+  [["clean", "tidy", "laundry", "dishes", "vacuum"], "🧹"],
+  [["cook", "dinner", "lunch", "breakfast", "meal"], "🍳"],
+  [["read", "book", "article"], "📖"],
+  [["write", "draft", "doc", "essay", "blog"], "✍️"],
+  [["code", "bug", "deploy", "pr", "ship"], "💻"],
+  [["gym", "workout", "run", "exercise", "yoga"], "🏃"],
+  [["doctor", "dentist", "appointment", "checkup"], "🩺"],
+  [["package", "return", "ship", "mail"], "📦"],
+  [["travel", "flight", "trip", "pack"], "✈️"],
+  [["car", "drive", "gas", "oil change"], "🚗"],
+  [["plant", "water the", "garden"], "🪴"],
+  [["study", "exam", "homework", "class"], "📚"],
+  [["birthday", "gift", "present"], "🎁"],
+  [["clean up", "fix", "repair"], "🔧"],
+];
+
+function guessEmojiForLabel(label) {
+  const text = (label || "").toLowerCase();
+  for (const [keywords, emoji] of TASK_EMOJI_KEYWORDS) {
+    if (keywords.some((k) => text.includes(k))) return emoji;
+  }
+  return "✅";
+}
 
 // Schedule kinds: "daily", "weekdays", "weekends", "custom" (specific
 // weekdays via schedule.days, 0=Sun..6=Sat like Date.getDay()), or "once"

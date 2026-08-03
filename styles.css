@@ -1448,3 +1448,67 @@ body.compact-widget .task-sub,
 body.compact-widget .task-note-input {
   display: none;
 }
+
+/* Quick-add compose bar: the low-friction path for one-off tasks — no
+   modal, just type and hit Enter. Sits inside the sticky header so it's
+   reachable no matter how far down the task list you've scrolled. */
+.quick-add-row {
+  margin-top: 4px;
+}
+
+.quick-add-input {
+  width: 100%;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  color: var(--ink);
+  border-radius: 999px;
+  padding: 10px 16px;
+  outline: none;
+}
+
+.quick-add-input:focus {
+  border-color: var(--accent);
+}
+
+.quick-add-input::placeholder {
+  color: var(--faint);
+}
+
+/* Section labels splitting the Today list into recurring Habits vs
+   one-off Tasks — plain small caption, not another sticky header, so it
+   doesn't compete with the screen title above it. */
+.task-group-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--faint);
+  margin: 14px 2px 2px;
+}
+
+.task-group-label:first-child {
+  margin-top: 2px;
+}
+
+.carry-over-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 40vh;
+  overflow-y: auto;
+}
+
+.carry-over-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 4px;
+  font-size: 14px;
+  color: var(--ink);
+  border-bottom: 1px solid var(--border);
+}
+
+.carry-over-item input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}

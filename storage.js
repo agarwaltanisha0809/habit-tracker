@@ -379,6 +379,47 @@ function endHabitRecurrenceFrom(habitId, date) {
   return state;
 }
 
+// --- Carry-over (one-off "once" tasks only, never recurring habits) ---
+// A task typed for a past date that never got done doesn't just vanish —
+// it's surfaced once per day so the user can decide to bring it into today
+// or drop it, instead of either losing it silently or having it nag forever.
+
+function getOverdueOnceTasks(state) {
+  return state.habits.filter((h) => {
+    if (!h.schedule || h.schedule.kind !== "once") return false;
+    if (h.schedule.date >= state.date) return false; // today or future, not overdue
+    if (h.carryOverDismissedDate === state.date) return false; // already answered for today
+    const entry = state.history[h.schedule.date] && state.history[h.schedule.date][h.id];
+    return !isCompleted(h, entry);
+  });
+}
+
+function carryOverTask(habitId, targetDate) {
+  const state = getState();
+  const habit = state.habits.find((h) => h.id === habitId);
+  if (!habit) return state;
+  habit.schedule = { ...habit.schedule, date: targetDate };
+  habit.carryOverDismissedDate = null;
+  ALL_HABITS = state.habits;
+  if (isScheduledForDate(habit, state.date) && !(habitId in state.entries)) {
+    state.entries[habitId] = defaultEntry(habit);
+  }
+  markDirty(state, "__habits__");
+  saveRaw(state);
+  return state;
+}
+
+function dismissCarryOver(habitId, todayDate) {
+  const state = getState();
+  const habit = state.habits.find((h) => h.id === habitId);
+  if (!habit) return state;
+  habit.carryOverDismissedDate = todayDate;
+  ALL_HABITS = state.habits;
+  markDirty(state, "__habits__");
+  saveRaw(state);
+  return state;
+}
+
 function setTrackerOverride(habitId, override) {
   // override: true (force show), false (force hide), null (auto-decide)
   const state = getState();

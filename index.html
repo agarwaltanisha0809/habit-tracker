@@ -50,11 +50,20 @@
               <button type="button" class="week-nav-btn" id="weekNext" aria-label="Next week">›</button>
             </div>
             <div class="home-header-row" style="margin-bottom: 10px;">
-              <button type="button" class="icon-btn" id="addTaskBtn" aria-label="Add habit or task" style="background:var(--accent); color:var(--accent-ink);">+</button>
+              <button type="button" class="icon-btn" id="addTaskBtn" aria-label="Add a recurring habit" style="background:var(--accent); color:var(--accent-ink);">+</button>
               <div class="mini-ring" id="miniRing">
                 <div class="mini-ring-svg"></div>
                 <div class="mini-ring-label">0/0</div>
               </div>
+            </div>
+            <div class="quick-add-row">
+              <input
+                type="text"
+                id="quickAddInput"
+                class="quick-add-input"
+                placeholder="Add a task for today…"
+                maxlength="140"
+              />
             </div>
           </div>
 
@@ -142,6 +151,21 @@
         <button type="button" class="schedule-option" id="deleteScopeFollowing" style="width:100%;">This and following days</button>
         <button type="button" class="schedule-option danger" id="deleteScopeAll" style="width:100%;">All days (delete habit)</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Carry-over modal: shown once per day when there are undone one-off
+       tasks from a past date, so they're a deliberate choice instead of
+       either silently vanishing or nagging forever. Habits never appear here. -->
+  <div id="carryOverModal" class="modal-overlay" hidden>
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Bring these into today?</h3>
+        <button id="carryOverClose" class="icon-btn" aria-label="Close">✕</button>
+      </div>
+      <p style="color:var(--muted); font-size:14px; margin: 0 0 12px;">These didn't get done. Checked ones move to today; unchecked ones stay where they were.</p>
+      <div class="carry-over-list" id="carryOverList"></div>
+      <button type="button" class="submit-btn" id="carryOverSubmit" style="margin-top:14px;">Continue</button>
     </div>
   </div>
 

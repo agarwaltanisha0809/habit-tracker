@@ -124,7 +124,11 @@ function bindNoteInput(card, habit, date) {
 }
 
 function applyTone(el, habit) {
-  const t = themeFor(habit);
+  // One-off tasks (schedule.kind === "once") always get the same bright
+  // task theme regardless of the habit's rotated color, so the eye can tell
+  // "temporary, needs clearing" apart from a recurring habit's own identity
+  // color at a glance — see TASK_THEME in habits.js.
+  const t = habit.schedule && habit.schedule.kind === "once" ? themeForTask() : themeFor(habit);
   el.style.setProperty("--tone-bg", t.bg);
   el.style.setProperty("--tone-text", t.text);
   el.style.setProperty("--tone-muted", t.muted);
@@ -392,17 +396,31 @@ function renderToday() {
   const listEl = document.getElementById("taskList");
   listEl.innerHTML = "";
   if (!tasks.length) {
-    listEl.innerHTML = `<div class="app-footer" style="margin-top:24px;">Nothing scheduled for this day yet. Tap + to add a habit or task.</div>`;
+    listEl.innerHTML = `<div class="app-footer" style="margin-top:24px;">Nothing scheduled for this day yet. Add a task above, or tap + for a recurring habit.</div>`;
   } else {
-    // Done habits sink to the bottom so what's left to do stays up top.
-    const sortedTasks = tasks
-      .slice()
-      .sort((a, b) => (isCompleted(a, entries[a.id]) ? 1 : 0) - (isCompleted(b, entries[b.id]) ? 1 : 0));
-    sortedTasks.forEach((habit) => {
-      const entry = entries[habit.id];
-      const card = habit.type === "counter" ? renderCounterCard(habit, entry, selectedDate) : renderCheckCard(habit, entry, selectedDate);
-      listEl.appendChild(card);
-    });
+    // Recurring habits and one-off tasks render as two visually distinct
+    // groups, each sorted done-to-bottom so what's left to do stays up top.
+    // Completed items stay visible (dimmed + struck through), just out of
+    // the way, rather than disappearing — the point is a visible record of
+    // what got cleared today, not a shrinking counter.
+    const byDone = (a, b) => (isCompleted(a, entries[a.id]) ? 1 : 0) - (isCompleted(b, entries[b.id]) ? 1 : 0);
+    const habitTasks = tasks.filter((h) => !h.schedule || h.schedule.kind !== "once").sort(byDone);
+    const onceTasks = tasks.filter((h) => h.schedule && h.schedule.kind === "once").sort(byDone);
+
+    const renderGroup = (label, group) => {
+      if (!group.length) return;
+      const header = document.createElement("div");
+      header.className = "task-group-label";
+      header.textContent = label;
+      listEl.appendChild(header);
+      group.forEach((habit) => {
+        const entry = entries[habit.id];
+        const card = habit.type === "counter" ? renderCounterCard(habit, entry, selectedDate) : renderCheckCard(habit, entry, selectedDate);
+        listEl.appendChild(card);
+      });
+    };
+    renderGroup("Habits", habitTasks);
+    renderGroup("Tasks", onceTasks);
   }
 
   if (isToday) {
@@ -452,6 +470,103 @@ function initBottomNav() {
 
 function initAddTaskButton() {
   document.getElementById("addTaskBtn").addEventListener("click", () => openAddTaskModal());
+}
+
+// Quick-add compose bar: a single always-visible field for one-off tasks,
+// no modal. Enter adds the typed line as a task for the currently viewed
+// day and clears the field, ready for the next one — type-Enter-type-Enter
+// for a quick brain dump, or a single line for a single passing thought.
+// Pasting a multi-line block splits it into one task per line automatically.
+function addQuickTask(label) {
+  const trimmed = label.trim();
+  if (!trimmed) return;
+  addHabit({
+    label: trimmed,
+    emoji: guessEmojiForLabel(trimmed),
+    type: "check",
+    schedule: { kind: "once", date: selectedDate },
+  });
+}
+
+function initQuickAdd() {
+  const input = document.getElementById("quickAddInput");
+  if (!input) return;
+
+  input.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    const lines = input.value.split("\n").map((l) => l.trim()).filter(Boolean);
+    lines.forEach(addQuickTask);
+    input.value = "";
+    if (lines.length) {
+      userHasInteracted = true;
+      renderToday();
+    }
+  });
+
+  // A paste of several lines (e.g. from Notes) adds them all at once,
+  // covering the "brain dump" case without a separate mode to switch into.
+  input.addEventListener("paste", (e) => {
+    const text = (e.clipboardData || window.clipboardData).getData("text");
+    if (!text || !text.includes("\n")) return; // single line: let it land in the field normally
+    e.preventDefault();
+    const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+    lines.forEach(addQuickTask);
+    input.value = "";
+    if (lines.length) {
+      userHasInteracted = true;
+      renderToday();
+    }
+  });
+}
+
+// --- Carry-over: undone one-off tasks from a past date, surfaced once per
+// real day so bringing them into today (or letting them go) is a deliberate
+// choice. Recurring habits never appear here — their own schedule already
+// decides which days they show up on. ---
+function checkCarryOver() {
+  const state = getState();
+  const overdue = getOverdueOnceTasks(state);
+  if (!overdue.length) return;
+
+  const listEl = document.getElementById("carryOverList");
+  listEl.innerHTML = overdue
+    .map(
+      (h) => `
+      <label class="carry-over-item">
+        <input type="checkbox" checked data-habit="${h.id}" />
+        <span>${h.emoji} ${h.label}</span>
+      </label>
+    `
+    )
+    .join("");
+  document.getElementById("carryOverModal").hidden = false;
+
+  const submit = document.getElementById("carryOverSubmit");
+  const closeBtn = document.getElementById("carryOverClose");
+  function applyChoices() {
+    overdue.forEach((h) => {
+      const checkbox = listEl.querySelector(`input[data-habit="${h.id}"]`);
+      if (checkbox && checkbox.checked) carryOverTask(h.id, state.date);
+      else dismissCarryOver(h.id, state.date);
+    });
+    cleanup();
+  }
+  // Closing with X, not Continue, just skips the decision for today — it
+  // asks again tomorrow if still undone, rather than silently carrying
+  // everything over based on checkbox defaults the user never confirmed.
+  function dismissAll() {
+    overdue.forEach((h) => dismissCarryOver(h.id, state.date));
+    cleanup();
+  }
+  function cleanup() {
+    document.getElementById("carryOverModal").hidden = true;
+    submit.removeEventListener("click", applyChoices);
+    closeBtn.removeEventListener("click", dismissAll);
+    refreshApp();
+  }
+  submit.addEventListener("click", applyChoices);
+  closeBtn.addEventListener("click", dismissAll);
 }
 
 // Called by dayEditor.js / addTask.js / settings.js after they mutate state.
@@ -511,6 +626,7 @@ initOpeningScreen();
 initBottomNav();
 initWeekNav();
 initAddTaskButton();
+initQuickAdd();
 initDayEditor();
 initAddTask();
 initDeleteScopeModal();
@@ -521,4 +637,5 @@ if (typeof initSyncOnLoad === "function") initSyncOnLoad();
 initServiceWorker();
 initCompactWidgetMode();
 showTab("today");
+checkCarryOver();
 scheduleMidnightReset();
