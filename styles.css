@@ -419,6 +419,10 @@ button {
   background: #378add;
 }
 
+.swipe-action-btn.tomorrow {
+  background: #639922;
+}
+
 .swipe-action-btn.delete {
   background: #e24b4a;
 }

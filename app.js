@@ -122,7 +122,7 @@ function renderCheckCard(habit, entry, date) {
     </button>
     <div class="task-info">
       <div class="task-title${done ? " done" : ""}">${habit.emoji} ${habit.label}</div>
-      <div class="task-sub">${scheduleLabel(habit.schedule)}</div>
+      ${habit.schedule.kind === "once" ? "" : `<div class="task-sub">${scheduleLabel(habit.schedule)}</div>`}
     </div>
   `;
   card.querySelector(".task-checkbox").addEventListener("click", (e) => {
@@ -237,19 +237,25 @@ function renderCounterCard(habit, entry, date) {
 // --- Swipe actions (edit + delete), with Google-Calendar-style recurrence scope ---
 // Direction is locked on the first few pixels of movement: a mostly-vertical
 // drag is left alone entirely (so page scroll is never hijacked), only a
-// clearly horizontal drag engages the swipe.
-const SWIPE_REVEAL_WIDTH = 140;
+// clearly horizontal drag engages the swipe. A swipe that keeps going well
+// past the reveal width hands off to a day change instead (see
+// triggerDayChangeAnimation) — this is what makes day-swipe work when
+// started on a card too, not just the background between cards.
 const SWIPE_LOCK_THRESHOLD = 6;
+const SWIPE_DAY_HANDOFF_PX = 210;
 let pendingDeleteHabit = null;
 let pendingDeleteDate = null;
 let closeOpenSwipe = null;
 
 function wrapWithSwipeToDelete(card, habit, date) {
+  const isOnceTask = habit.schedule && habit.schedule.kind === "once";
+  const revealWidth = isOnceTask ? 210 : 140;
   const wrapper = document.createElement("div");
   wrapper.className = "swipe-wrapper";
   wrapper.innerHTML = `
     <div class="swipe-actions">
       <button type="button" class="swipe-action-btn edit" aria-label="Edit ${habit.label}">✏️<span>Edit</span></button>
+      ${isOnceTask ? `<button type="button" class="swipe-action-btn tomorrow" aria-label="Move ${habit.label} to tomorrow">➡️<span>Tomorrow</span></button>` : ""}
       <button type="button" class="swipe-action-btn delete" aria-label="Delete ${habit.label}">🗑️<span>Delete</span></button>
     </div>
   `;
@@ -276,7 +282,7 @@ function wrapWithSwipeToDelete(card, habit, date) {
     if (e.target.closest("button, input")) return;
     startX = e.clientX;
     startY = e.clientY;
-    baseX = revealed ? -SWIPE_REVEAL_WIDTH : 0;
+    baseX = revealed ? -revealWidth : 0;
     locked = null;
   });
 
@@ -294,7 +300,7 @@ function wrapWithSwipeToDelete(card, habit, date) {
       }
     }
     if (locked !== "horizontal") return;
-    setX(Math.max(-SWIPE_REVEAL_WIDTH, Math.min(0, baseX + dx)), false);
+    setX(Math.max(-revealWidth, Math.min(0, baseX + dx)), false);
   });
 
   function endDrag(e) {
@@ -302,9 +308,19 @@ function wrapWithSwipeToDelete(card, habit, date) {
     locked = null;
     if (!wasHorizontal) return;
     card.classList.remove("dragging");
-    const endX = baseX + (e.clientX - startX);
-    revealed = endX < -SWIPE_REVEAL_WIDTH / 2;
-    setX(revealed ? -SWIPE_REVEAL_WIDTH : 0, true);
+    const rawDx = e.clientX - startX;
+    // A swipe that goes well past the reveal width is a day-change gesture
+    // that happened to start on a card, not an attempt to open the actions.
+    if (Math.abs(rawDx) > SWIPE_DAY_HANDOFF_PX) {
+      setX(0, true);
+      revealed = false;
+      closeOpenSwipe = null;
+      triggerDayChangeAnimation(rawDx < 0 ? 1 : -1);
+      return;
+    }
+    const endX = baseX + rawDx;
+    revealed = endX < -revealWidth / 2;
+    setX(revealed ? -revealWidth : 0, true);
     closeOpenSwipe = revealed ? close : null;
   }
   card.addEventListener("pointerup", endDrag);
@@ -314,6 +330,14 @@ function wrapWithSwipeToDelete(card, habit, date) {
     close();
     openEditTaskModal(habit);
   });
+  const tomorrowBtn = wrapper.querySelector(".swipe-action-btn.tomorrow");
+  if (tomorrowBtn) {
+    tomorrowBtn.addEventListener("click", () => {
+      close();
+      carryOverTask(habit.id, addDays(date, 1));
+      refreshApp();
+    });
+  }
   wrapper.querySelector(".swipe-action-btn.delete").addEventListener("click", () => {
     close();
     openDeleteScope(habit, date);
@@ -511,12 +535,44 @@ function initWeekNav() {
   });
 }
 
+function changeDayBy(delta) {
+  selectedDate = addDays(selectedDate, delta);
+  renderToday();
+}
+
+// Shared "page slide" animation for a day change, whether it was triggered
+// by a background swipe or a big swipe that started on a card (see the
+// hand-off in wrapWithSwipeToDelete). delta > 0 (moving to a later day)
+// exits/enters like content sliding leftward, matching swipe-left-to-
+// advance the way Apple Calendar's day view feels.
+function triggerDayChangeAnimation(delta) {
+  const el = document.getElementById("view-today");
+  const exitPx = delta > 0 ? -18 : 18;
+  el.style.transition = "transform 0.14s ease, opacity 0.14s ease";
+  el.style.transform = `translateX(${exitPx}px)`;
+  el.style.opacity = "0";
+  setTimeout(() => {
+    changeDayBy(delta);
+    el.style.transition = "none";
+    el.style.transform = `translateX(${-exitPx}px)`;
+    requestAnimationFrame(() => {
+      el.style.transition = "transform 0.18s ease, opacity 0.18s ease";
+      el.style.transform = "translateX(0)";
+      el.style.opacity = "1";
+    });
+  }, 140);
+}
+
 // Swipe left/right anywhere on the Today screen to move a day, like Apple
 // Calendar's day view — not just tapping an exact date in the week strip.
-// Starts a swipe on a card's own swipe-wrapper (edit/delete reveal) or on a
-// button/input are left alone entirely, so this never steals those gestures.
+// Works starting on the background, the habit chip row, or a card (a card's
+// own short edit/delete swipe still wins for a normal-length drag; only a
+// swipe well past that reveal width hands off to a day change, handled in
+// wrapWithSwipeToDelete's endDrag) — buttons/inputs are left alone so taps
+// on them are never mistaken for the start of a swipe.
 const DAY_SWIPE_MIN_PX = 60;
 const DAY_SWIPE_LOCK_THRESHOLD = 10;
+const DAY_SWIPE_FOLLOW_MAX_PX = 36;
 
 function initDaySwipe() {
   const el = document.getElementById("view-today");
@@ -532,28 +588,43 @@ function initDaySwipe() {
     startY = e.clientY;
     dragging = true;
     locked = null;
+    el.style.transition = "none";
   });
 
   el.addEventListener("pointermove", (e) => {
-    if (!dragging || locked) return;
+    if (!dragging) return;
     const dx = e.clientX - startX;
     const dy = e.clientY - startY;
-    if (Math.abs(dx) < DAY_SWIPE_LOCK_THRESHOLD && Math.abs(dy) < DAY_SWIPE_LOCK_THRESHOLD) return;
-    locked = Math.abs(dx) > Math.abs(dy) ? "horizontal" : "vertical";
+    if (!locked) {
+      if (Math.abs(dx) < DAY_SWIPE_LOCK_THRESHOLD && Math.abs(dy) < DAY_SWIPE_LOCK_THRESHOLD) return;
+      locked = Math.abs(dx) > Math.abs(dy) ? "horizontal" : "vertical";
+    }
+    if (locked !== "horizontal") return;
+    // A light rubber-band follow so the drag feels connected to your finger
+    // instead of the day only ever jumping on release.
+    const follow = Math.max(-DAY_SWIPE_FOLLOW_MAX_PX, Math.min(DAY_SWIPE_FOLLOW_MAX_PX, dx * 0.3));
+    el.style.transform = `translateX(${follow}px)`;
   });
 
   function end(e) {
     if (!dragging) return;
     dragging = false;
-    if (locked !== "horizontal") return;
+    if (locked !== "horizontal") {
+      el.style.transform = "";
+      return;
+    }
     const dx = e.clientX - startX;
-    if (Math.abs(dx) < DAY_SWIPE_MIN_PX) return;
-    selectedDate = addDays(selectedDate, dx < 0 ? 1 : -1);
-    renderToday();
+    if (Math.abs(dx) < DAY_SWIPE_MIN_PX) {
+      el.style.transition = "transform 0.18s ease";
+      el.style.transform = "translateX(0)";
+      return;
+    }
+    triggerDayChangeAnimation(dx < 0 ? 1 : -1);
   }
   el.addEventListener("pointerup", end);
   el.addEventListener("pointercancel", () => {
     dragging = false;
+    el.style.transform = "";
   });
 }
 
