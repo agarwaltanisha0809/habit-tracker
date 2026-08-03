@@ -98,31 +98,6 @@ function renderWeekStrip() {
   });
 }
 
-function noteField(habit, entry, date) {
-  return `
-    <input
-      type="text"
-      class="task-note-input"
-      data-habit="${habit.id}"
-      placeholder="Add a note (optional)"
-      value="${(entry.note || "").replace(/"/g, "&quot;")}"
-      maxlength="140"
-    />
-  `;
-}
-
-function bindNoteInput(card, habit, date) {
-  const input = card.querySelector(".task-note-input");
-  let debounceTimer;
-  input.addEventListener("input", (e) => {
-    clearTimeout(debounceTimer);
-    const value = e.target.value;
-    debounceTimer = setTimeout(() => {
-      setEntryForDate(date, habit.id, { note: value });
-    }, 400);
-  });
-}
-
 function applyTone(el, habit) {
   // One-off tasks (schedule.kind === "once") always get the same bright
   // task theme regardless of the habit's rotated color, so the eye can tell
@@ -148,7 +123,6 @@ function renderCheckCard(habit, entry, date) {
     <div class="task-info">
       <div class="task-title${done ? " done" : ""}">${habit.emoji} ${habit.label}</div>
       <div class="task-sub">${scheduleLabel(habit.schedule)}</div>
-      ${noteField(habit, entry, date)}
     </div>
   `;
   card.querySelector(".task-checkbox").addEventListener("click", (e) => {
@@ -157,8 +131,67 @@ function renderCheckCard(habit, entry, date) {
     burstAnimation(e.currentTarget, !done);
     renderToday();
   });
-  bindNoteInput(card, habit, date);
   return wrapWithSwipeToDelete(card, habit, date);
+}
+
+// Compact chip for a recurring, check-type habit (counters keep the full
+// card below since they need +/- controls). Tap toggles done instantly;
+// a long-press (500ms, cancelled by any real movement so it doesn't fire
+// mid-scroll) opens the edit modal — deletion still lives in Settings, so
+// this doesn't need its own swipe gesture.
+const HABIT_CHIP_LONG_PRESS_MS = 500;
+const HABIT_CHIP_MOVE_CANCEL_PX = 8;
+
+function renderHabitChip(habit, entry, date) {
+  const done = isCompleted(habit, entry);
+  const t = themeFor(habit);
+  const chip = document.createElement("button");
+  chip.type = "button";
+  chip.className = `habit-chip-pill${done ? " done" : ""}`;
+  chip.setAttribute("aria-label", habit.label);
+  chip.style.setProperty("--tone-bg", t.bg);
+  chip.style.setProperty("--tone-accent", t.accent);
+  chip.innerHTML = `<span class="habit-chip-pill-icon">${habit.emoji}</span><span class="habit-chip-pill-label">${habit.label}</span>`;
+
+  let pressTimer = null;
+  let longPressed = false;
+  let startX = 0;
+  let startY = 0;
+
+  function clearPressTimer() {
+    if (pressTimer) {
+      clearTimeout(pressTimer);
+      pressTimer = null;
+    }
+  }
+
+  chip.addEventListener("pointerdown", (e) => {
+    longPressed = false;
+    startX = e.clientX;
+    startY = e.clientY;
+    clearPressTimer();
+    pressTimer = setTimeout(() => {
+      longPressed = true;
+      openEditTaskModal(habit);
+    }, HABIT_CHIP_LONG_PRESS_MS);
+  });
+  chip.addEventListener("pointermove", (e) => {
+    if (Math.abs(e.clientX - startX) > HABIT_CHIP_MOVE_CANCEL_PX || Math.abs(e.clientY - startY) > HABIT_CHIP_MOVE_CANCEL_PX) {
+      clearPressTimer();
+    }
+  });
+  chip.addEventListener("pointerup", () => {
+    clearPressTimer();
+    if (longPressed) return;
+    userHasInteracted = true;
+    setEntryForDate(date, habit.id, { done: !done });
+    burstAnimation(chip, !done);
+    renderToday();
+  });
+  chip.addEventListener("pointercancel", clearPressTimer);
+  chip.addEventListener("pointerleave", clearPressTimer);
+
+  return chip;
 }
 
 function renderCounterCard(habit, entry, date) {
@@ -187,7 +220,6 @@ function renderCounterCard(habit, entry, date) {
         <button class="counter-btn plus" data-habit="${habit.id}" aria-label="Increase">+</button>
       </div>
     </div>
-    ${noteField(habit, entry, date)}
   `;
   card.querySelector(".plus").addEventListener("click", (e) => {
     userHasInteracted = true;
@@ -199,7 +231,6 @@ function renderCounterCard(habit, entry, date) {
     setEntryForDate(date, habit.id, { count: Math.max(0, count - 1) });
     renderToday();
   });
-  bindNoteInput(card, habit, date);
   return wrapWithSwipeToDelete(card, habit, date);
 }
 
@@ -406,21 +437,39 @@ function renderToday() {
     const byDone = (a, b) => (isCompleted(a, entries[a.id]) ? 1 : 0) - (isCompleted(b, entries[b.id]) ? 1 : 0);
     const habitTasks = tasks.filter((h) => !h.schedule || h.schedule.kind !== "once").sort(byDone);
     const onceTasks = tasks.filter((h) => h.schedule && h.schedule.kind === "once").sort(byDone);
+    // Check-type habits render as a compact chip row (tap to toggle); counter
+    // habits (e.g. water) keep the full card since they need +/- controls.
+    const checkHabits = habitTasks.filter((h) => h.type !== "counter");
+    const counterHabits = habitTasks.filter((h) => h.type === "counter");
 
-    const renderGroup = (label, group) => {
-      if (!group.length) return;
+    if (habitTasks.length) {
+      const daysMap = getAllDaysMap(state);
+      const bestStreak = habitTasks.reduce((max, h) => Math.max(max, computeCurrentStreak(h, daysMap, selectedDate)), 0);
       const header = document.createElement("div");
       header.className = "task-group-label";
-      header.textContent = label;
+      header.innerHTML = `Habits${bestStreak > 0 ? ` <span class="group-stat">🔥 ${bestStreak}</span>` : ""}`;
       listEl.appendChild(header);
-      group.forEach((habit) => {
-        const entry = entries[habit.id];
-        const card = habit.type === "counter" ? renderCounterCard(habit, entry, selectedDate) : renderCheckCard(habit, entry, selectedDate);
+
+      if (checkHabits.length) {
+        const row = document.createElement("div");
+        row.className = "habit-chip-row";
+        checkHabits.forEach((habit) => row.appendChild(renderHabitChip(habit, entries[habit.id], selectedDate)));
+        listEl.appendChild(row);
+      }
+      counterHabits.forEach((habit) => listEl.appendChild(renderCounterCard(habit, entries[habit.id], selectedDate)));
+    }
+
+    if (onceTasks.length) {
+      const leftCount = onceTasks.filter((h) => !isCompleted(h, entries[h.id])).length;
+      const header = document.createElement("div");
+      header.className = "task-group-label";
+      header.innerHTML = `Tasks <span class="group-stat">${leftCount} left</span>`;
+      listEl.appendChild(header);
+      onceTasks.forEach((habit) => {
+        const card = habit.type === "counter" ? renderCounterCard(habit, entries[habit.id], selectedDate) : renderCheckCard(habit, entries[habit.id], selectedDate);
         listEl.appendChild(card);
       });
-    };
-    renderGroup("Habits", habitTasks);
-    renderGroup("Tasks", onceTasks);
+    }
   }
 
   if (isToday) {
@@ -459,6 +508,52 @@ function initWeekNav() {
   });
   document.getElementById("taskList").addEventListener("pointerdown", (e) => {
     if (closeOpenSwipe && !e.target.closest(".swipe-actions")) closeOpenSwipe();
+  });
+}
+
+// Swipe left/right anywhere on the Today screen to move a day, like Apple
+// Calendar's day view — not just tapping an exact date in the week strip.
+// Starts a swipe on a card's own swipe-wrapper (edit/delete reveal) or on a
+// button/input are left alone entirely, so this never steals those gestures.
+const DAY_SWIPE_MIN_PX = 60;
+const DAY_SWIPE_LOCK_THRESHOLD = 10;
+
+function initDaySwipe() {
+  const el = document.getElementById("view-today");
+  if (!el) return;
+  let startX = 0;
+  let startY = 0;
+  let dragging = false;
+  let locked = null; // null | "horizontal" | "vertical"
+
+  el.addEventListener("pointerdown", (e) => {
+    if (e.target.closest(".swipe-wrapper, button, input")) return;
+    startX = e.clientX;
+    startY = e.clientY;
+    dragging = true;
+    locked = null;
+  });
+
+  el.addEventListener("pointermove", (e) => {
+    if (!dragging || locked) return;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    if (Math.abs(dx) < DAY_SWIPE_LOCK_THRESHOLD && Math.abs(dy) < DAY_SWIPE_LOCK_THRESHOLD) return;
+    locked = Math.abs(dx) > Math.abs(dy) ? "horizontal" : "vertical";
+  });
+
+  function end(e) {
+    if (!dragging) return;
+    dragging = false;
+    if (locked !== "horizontal") return;
+    const dx = e.clientX - startX;
+    if (Math.abs(dx) < DAY_SWIPE_MIN_PX) return;
+    selectedDate = addDays(selectedDate, dx < 0 ? 1 : -1);
+    renderToday();
+  }
+  el.addEventListener("pointerup", end);
+  el.addEventListener("pointercancel", () => {
+    dragging = false;
   });
 }
 
@@ -625,6 +720,7 @@ selectedDate = initialState.date;
 initOpeningScreen();
 initBottomNav();
 initWeekNav();
+initDaySwipe();
 initAddTaskButton();
 initQuickAdd();
 initDayEditor();
