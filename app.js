@@ -176,7 +176,7 @@ function renderHabitChip(habit, entry, date) {
     clearPressTimer();
     pressTimer = setTimeout(() => {
       longPressed = true;
-      openEditTaskModal(habit);
+      openEditTaskModal(habit, date);
     }, HABIT_CHIP_LONG_PRESS_MS);
   });
   chip.addEventListener("pointermove", (e) => {
@@ -332,7 +332,7 @@ function wrapWithSwipeToDelete(card, habit, date) {
 
   wrapper.querySelector(".swipe-action-btn.edit").addEventListener("click", () => {
     close();
-    openEditTaskModal(habit);
+    openEditTaskModal(habit, date);
   });
   const tomorrowBtn = wrapper.querySelector(".swipe-action-btn.tomorrow");
   if (tomorrowBtn) {

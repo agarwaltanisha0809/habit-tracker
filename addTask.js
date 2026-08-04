@@ -5,6 +5,7 @@ let selectedEmoji = "⭐";
 let selectedScheduleKind = "daily";
 let selectedCustomDays = [];
 let editingHabitId = null;
+let editingHabitDate = null;
 
 function renderEmojiGrid() {
   const el = document.getElementById("emojiGrid");
@@ -77,10 +78,12 @@ function setModalMode(isEdit) {
   // The type (yes/no vs counter) can't change after creation without risking
   // mismatched history, so lock it while editing.
   document.getElementById("newTaskType").disabled = isEdit;
+  document.getElementById("addTaskDeleteBtn").hidden = !isEdit;
 }
 
 function openAddTaskModal() {
   editingHabitId = null;
+  editingHabitDate = null;
   selectedEmoji = "⭐";
   selectedScheduleKind = "daily";
   selectedCustomDays = [];
@@ -95,8 +98,9 @@ function openAddTaskModal() {
   document.getElementById("addTaskModal").hidden = false;
 }
 
-function openEditTaskModal(habit) {
+function openEditTaskModal(habit, date) {
   editingHabitId = habit.id;
+  editingHabitDate = date || (typeof selectedDate !== "undefined" ? selectedDate : null);
   selectedEmoji = habit.emoji || "⭐";
   selectedCustomDays = habit.schedule && habit.schedule.kind === "custom" ? habit.schedule.days.slice() : [];
   selectedScheduleKind = habit.schedule ? habit.schedule.kind : "daily";
@@ -141,6 +145,16 @@ function initAddTask() {
   document.getElementById("addTaskModalClose").addEventListener("click", closeAddTaskModal);
   document.getElementById("addTaskModal").addEventListener("click", (e) => {
     if (e.target.id === "addTaskModal") closeAddTaskModal();
+  });
+
+  // Delete only shows while editing an existing habit — closes this modal
+  // and hands off to the same scope-picker (just this day / following days /
+  // all days) that swiping a card to delete already uses.
+  document.getElementById("addTaskDeleteBtn").addEventListener("click", () => {
+    const habit = getHabits().find((h) => h.id === editingHabitId);
+    if (!habit) return;
+    closeAddTaskModal();
+    openDeleteScope(habit, editingHabitDate || habit.schedule.date || todayKey());
   });
 
   document.getElementById("addTaskForm").addEventListener("submit", (e) => {
