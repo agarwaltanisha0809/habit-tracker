@@ -338,7 +338,20 @@ function wrapWithSwipeToDelete(card, habit, date) {
   if (tomorrowBtn) {
     tomorrowBtn.addEventListener("click", () => {
       close();
-      carryOverTask(habit.id, addDays(date, 1));
+      // Duplicates, doesn't move — this is for a task you're actively
+      // partway through (e.g. a big task split across days), so today's
+      // occurrence (and whatever you've already checked off on it) stays
+      // exactly as-is, and a fresh unchecked copy appears tomorrow. This is
+      // deliberately different from the automatic next-morning carry-over
+      // prompt, which moves a task that was never touched at all.
+      addHabit({
+        label: habit.label,
+        emoji: habit.emoji,
+        type: habit.type,
+        schedule: { kind: "once", date: addDays(date, 1) },
+        target: habit.target,
+        unitMl: habit.unitMl,
+      });
       refreshApp();
     });
   }
