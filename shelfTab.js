@@ -5,6 +5,12 @@
 // see openAddTaskModal's prefill param in addTask.js) and Delete.
 
 const SHELF_CATEGORY_ORDER = ["Books", "Ideas", "Projects", "Other"];
+// No per-item emoji (it kept defaulting to a generic checkmark for
+// anything the keyword guesser couldn't match, which was most book
+// titles) — instead each category gets a thin colored accent bar, reusing
+// existing habit accent colors for visual consistency with the rest of
+// the app.
+const SHELF_CATEGORY_COLORS = { Books: "#EF9F27", Ideas: "#378ADD", Projects: "#7F77DD", Other: "#8c8579" };
 
 function renderShelfTab() {
   const state = getState();
@@ -41,7 +47,8 @@ function renderShelfTab() {
 function renderShelfCard(item) {
   const card = document.createElement("div");
   card.className = "bento-card shelf-card";
-  card.innerHTML = `<span class="shelf-card-label">${item.emoji} ${item.label}</span>`;
+  card.style.setProperty("--shelf-accent", SHELF_CATEGORY_COLORS[item.category] || SHELF_CATEGORY_COLORS.Other);
+  card.innerHTML = `<span class="shelf-card-accent"></span><span class="shelf-card-label">${item.label}</span>`;
   return wrapShelfSwipe(card, item);
 }
 
@@ -115,7 +122,7 @@ function wrapShelfSwipe(card, item) {
 
   wrapper.querySelector(".swipe-action-btn.tomorrow").addEventListener("click", () => {
     close();
-    openAddTaskModal({ label: item.label, emoji: item.emoji, promoteShelfId: item.id });
+    openAddTaskModal({ label: item.label, promoteShelfId: item.id });
   });
   wrapper.querySelector(".swipe-action-btn.delete").addEventListener("click", () => {
     close();
@@ -134,11 +141,7 @@ function initShelfTab() {
   function addFromInput() {
     const label = input.value.trim();
     if (!label) return;
-    addShelfItem({
-      label,
-      emoji: typeof guessEmojiForLabel === "function" ? guessEmojiForLabel(label) : "📌",
-      category: categorySelect.value,
-    });
+    addShelfItem({ label, category: categorySelect.value });
     input.value = "";
     renderShelfTab();
   }
