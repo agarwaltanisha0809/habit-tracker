@@ -27,7 +27,7 @@ To deploy a change: commit and `git push origin main`. GitHub Pages picks it up 
 
 | File | Responsibility |
 |---|---|
-| `index.html` | All markup: shell, 4 tab views, modals (add/edit habit, day editor, delete-scope, settings) |
+| `index.html` | All markup: shell, 5 tab views, modals (add/edit habit, day editor, delete-scope, carry-over, settings) |
 | `styles.css` | Everything visual. One big file, organized by section with comments |
 | `storage.js` | Data model + all localStorage/state mutation. Read this first to understand the app |
 | `habits.js` | Color themes, emoji list, schedule-matching logic (`isScheduledForDate`) |
@@ -38,6 +38,7 @@ To deploy a change: commit and `git push origin main`. GitHub Pages picks it up 
 | `tracker.js` | Habit Tracker tab (weekly/monthly/yearly grids) |
 | `sleepTab.js` | Sleep tab (start/stop logging, insights) |
 | `insightsTab.js` | Insights tab (month heatmap, editorial stats) |
+| `shelfTab.js` | Shelf tab (undated "someday" list — books/ideas/projects, promote-to-task) |
 | `settings.js` | Settings panel: appearance, notifications, sync, habit list, sleep goal |
 | `sync.js` | Firestore cross-device sync (last-write-wins per day) |
 | `push.js` | Web Push subscription (client side only — requires Sync to be on) |
@@ -72,6 +73,17 @@ Recurring habits (`schedule.kind !== "once"`) and one-off tasks (`schedule.kind 
 - **Swipe left/right to change day** (`app.js:initDaySwipe` + `triggerDayChangeAnimation`/`changeDayBy`): mimics Apple Calendar's day-view paging, with a live rubber-band follow during the drag and a slide transition on release/handoff (not an instant jump) — a purely horizontal drag of at least 60px anywhere moves `selectedDate` by ±1 day. **Listeners are bound to `#scrollArea` (the scroll container), not `#view-today`** — a sparse day leaves `#view-today` shorter than the screen, so binding to the section itself missed touches in the empty space below the content; the scroll container always fills the available height, with a `currentTab !== "today"` guard so it stays inert on other tabs. On a card, a *normal* horizontal swipe still does the card's own edit/delete/tomorrow reveal as before; only a swipe well past the reveal width (`SWIPE_DAY_HANDOFF_PX` in `wrapWithSwipeToDelete`'s `endDrag`) hands off to the same day-change animation — this is what makes day-swipe work starting from a card too, not just the gaps between them. Buttons/inputs are still excluded so taps are never mistaken for a swipe start.
 - **"Tomorrow" swipe action duplicates, it does not move** (one-off tasks only, not habits) — this is the opposite of `carryOverTask`/the automatic morning prompt on purpose. It's for a task the user is actively partway through today (e.g. a big task split across days): today's occurrence (and whatever's already checked off on it) stays exactly as it is, and a brand new, unchecked copy is created via `addHabit(...)` dated tomorrow. The automatic next-morning carry-over prompt is the opposite case — a task that was never touched at all — and correctly *moves* it (`carryOverTask`) rather than duplicating, since there's nothing on today worth preserving. Don't merge these two into one function; they're semantically different actions even though both end with "a task appears tomorrow."
 - **Once-task cards no longer show "just for today"** under the title — `scheduleLabel` is only rendered for recurring habits now; a one-off task's schedule is self-evident from context (it's in the Tasks group), so the label was redundant clutter.
+
+## Shelf tab (shelfTab.js)
+
+A third, deliberately different category from both Habits (recurring) and Tasks (dated): **undated "someday" items** — books, ideas, side projects — with no schedule, no completion state, no streaks. It's meant to be a pressure-free parking lot, not another list nagging for attention, so resist adding due dates, reminders, or sorting/priority to it.
+
+- Data: `state.shelf` is a flat array of `{ id, emoji, label, category, createdAt }`, purely additive to the existing schema — `getState()` backfills `[]` if missing, `freshState()` includes it. No migration needed, no interaction with `habits`/`entries`/`history`.
+- `category` is one of `Books | Ideas | Projects | Other` (`SHELF_CATEGORY_ORDER` in shelfTab.js controls both the `<select>` options and the group-header render order). Free-text categories aren't supported on purpose — keeps the grouping predictable.
+- Quick-add (`#shelfAddInput` + `#shelfCategorySelect`) reuses the same low-friction Enter-to-add pattern and `guessEmojiForLabel()` keyword guesser as the Tasks quick-add bar.
+- Each item has its own swipe wrapper (`wrapShelfSwipe` in shelfTab.js) with two actions: **Promote** and **Delete**. It's a separate, smaller implementation from `wrapWithSwipeToDelete` in app.js, not a reuse — shelf items don't have a habit/date shape, so the edit-scope/tomorrow logic there doesn't apply. Don't try to unify them; they're intentionally different shapes.
+- **Promote to task**: calls `openAddTaskModal({ label, emoji, promoteShelfId })` (addTask.js) — the *same* add-habit form used everywhere else, just pre-filled, so promoting means picking a real schedule like any other habit/task. On successful submit (create path only, not edit), `promoteShelfId` triggers `removeShelfItem()` and the shelf item is gone — the shelf itself has no memory of what it became, it's just deleted once promoted.
+- 5th bottom-nav tab (`data-tab="shelf"`, 🗂️). `showTab()` and its tab-list array both had to include `"shelf"` — if adding a 6th tab later, check both places.
 
 ## Known constraints / decisions (don't relitigate without reason)
 

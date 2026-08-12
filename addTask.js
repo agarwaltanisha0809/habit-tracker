@@ -6,6 +6,7 @@ let selectedScheduleKind = "daily";
 let selectedCustomDays = [];
 let editingHabitId = null;
 let editingHabitDate = null;
+let promoteShelfId = null; // set when opened via "Promote to task" from the Shelf tab
 
 function renderEmojiGrid() {
   const el = document.getElementById("emojiGrid");
@@ -81,10 +82,11 @@ function setModalMode(isEdit) {
   document.getElementById("addTaskDeleteBtn").hidden = !isEdit;
 }
 
-function openAddTaskModal() {
+function openAddTaskModal(prefill) {
   editingHabitId = null;
   editingHabitDate = null;
-  selectedEmoji = "⭐";
+  promoteShelfId = (prefill && prefill.promoteShelfId) || null;
+  selectedEmoji = (prefill && prefill.emoji) || "⭐";
   selectedScheduleKind = "daily";
   selectedCustomDays = [];
   document.getElementById("addTaskForm").reset();
@@ -93,6 +95,7 @@ function openAddTaskModal() {
   document.getElementById("targetField").hidden = true;
   document.getElementById("liquidField").hidden = true;
   document.getElementById("newTaskIsLiquid").checked = false;
+  if (prefill && prefill.label) document.getElementById("newTaskLabel").value = prefill.label;
   setModalMode(false);
   renderScheduleOptions();
   document.getElementById("addTaskModal").hidden = false;
@@ -180,6 +183,14 @@ function initAddTask() {
       updateHabit(editingHabitId, { label, emoji: selectedEmoji, schedule, target, unitMl });
     } else {
       addHabit({ label, emoji: selectedEmoji, type, schedule, target, unitMl });
+      // Promoting a Shelf item creates the real habit/task above, then
+      // removes the "someday" placeholder — the shelf itself never knew
+      // what it became, it's just gone once promoted.
+      if (promoteShelfId) {
+        removeShelfItem(promoteShelfId);
+        promoteShelfId = null;
+        if (typeof renderShelfTab === "function") renderShelfTab();
+      }
     }
     closeAddTaskModal();
     if (typeof refreshApp === "function") refreshApp();

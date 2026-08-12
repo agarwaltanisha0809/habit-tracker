@@ -92,7 +92,7 @@ function saveRaw(state, opts) {
 }
 
 function freshState() {
-  return { date: todayKey(), entries: {}, history: {}, habits: [], meta: { updatedAt: {} } };
+  return { date: todayKey(), entries: {}, history: {}, habits: [], shelf: [], meta: { updatedAt: {} } };
 }
 
 // Migrates the v3 (fixed daily-list, no scheduling) schema if present.
@@ -134,6 +134,7 @@ function getState() {
   }
   if (!state.history) state.history = {};
   if (!state.habits) state.habits = [];
+  if (!state.shelf) state.shelf = [];
   if (!state.meta) state.meta = { updatedAt: {} };
   if (!state.meta.updatedAt) state.meta.updatedAt = {};
 
@@ -421,6 +422,35 @@ function dismissCarryOver(habitId, todayDate) {
   habit.carryOverDismissedDate = todayDate;
   ALL_HABITS = state.habits;
   markDirty(state, "__habits__");
+  saveRaw(state);
+  return state;
+}
+
+// --- Shelf: undated "someday" items (books, ideas, projects to start
+// later). No schedule, no completion, no streaks — a pressure-free parking
+// lot, separate from both habits and tasks. "Promoting" an item just means
+// removing it here and creating a real habit/task elsewhere; the shelf
+// itself has no notion of that, it's purely a flat list. ---
+
+function addShelfItem({ label, emoji, category }) {
+  const state = getState();
+  const id = "shelf-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8);
+  state.shelf.push({
+    id,
+    emoji: emoji || "📌",
+    label,
+    category: category || "Other",
+    createdAt: Date.now(),
+  });
+  markDirty(state, "__shelf__");
+  saveRaw(state);
+  return state;
+}
+
+function removeShelfItem(itemId) {
+  const state = getState();
+  state.shelf = state.shelf.filter((s) => s.id !== itemId);
+  markDirty(state, "__shelf__");
   saveRaw(state);
   return state;
 }

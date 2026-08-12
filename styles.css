@@ -1478,6 +1478,35 @@ body.compact-widget .task-note-input {
   color: var(--faint);
 }
 
+/* Shelf tab: undated "someday" items, deliberately plain — no per-item
+   color theming (that's reserved for habits/tasks), no streaks, no
+   completion state. Just a label and a category grouping. */
+.shelf-add-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.shelf-category-select {
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  color: var(--ink);
+  border-radius: 999px;
+  padding: 10px 10px;
+  outline: none;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.shelf-card {
+  padding: 11px 14px;
+}
+
+.shelf-card-label {
+  font-size: 14px;
+  color: var(--ink);
+}
+
 /* Section labels splitting the Today list into recurring Habits vs
    one-off Tasks — plain small caption, not another sticky header, so it
    doesn't compete with the screen title above it. */

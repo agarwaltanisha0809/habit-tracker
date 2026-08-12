@@ -110,6 +110,25 @@
           <div class="heatmap-month-card" id="insightsHeatmap"></div>
           <div class="insights-pill-rows" id="insightsPills"></div>
         </section>
+
+        <!-- Shelf view: undated "someday" items — books, ideas, projects to
+             start later. No schedule, no completion, no streaks. -->
+        <section id="view-shelf" hidden>
+          <div class="screen-title-wrap">
+            <div class="screen-title">Shelf</div>
+            <div id="shelfScribble"></div>
+          </div>
+          <div class="shelf-add-row">
+            <select id="shelfCategorySelect" class="shelf-category-select">
+              <option value="Other">Other</option>
+              <option value="Books">Books</option>
+              <option value="Ideas">Ideas</option>
+              <option value="Projects">Projects</option>
+            </select>
+            <input type="text" id="shelfAddInput" class="quick-add-input" placeholder="Add something for later…" maxlength="140" style="flex:1;" />
+          </div>
+          <div class="shelf-list" id="shelfList"></div>
+        </section>
       </div>
     </div>
 
@@ -120,6 +139,7 @@
         <button type="button" class="bottom-nav-btn" data-tab="tracker"><span>📈</span><span>Tracker</span></button>
         <button type="button" class="bottom-nav-btn" data-tab="sleep"><span>😴</span><span>Sleep</span></button>
         <button type="button" class="bottom-nav-btn" data-tab="insights"><span>✨</span><span>Insights</span></button>
+        <button type="button" class="bottom-nav-btn" data-tab="shelf"><span>🗂️</span><span>Shelf</span></button>
       </div>
     </div>
   </div>
@@ -319,6 +339,7 @@
   <script src="tracker.js"></script>
   <script src="sleepTab.js"></script>
   <script src="insightsTab.js"></script>
+  <script src="shelfTab.js"></script>
   <script src="dayEditor.js"></script>
   <script src="addTask.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>

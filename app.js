@@ -526,7 +526,7 @@ function renderToday() {
 
 function showTab(tab) {
   currentTab = tab;
-  ["today", "tracker", "sleep", "insights"].forEach((t) => {
+  ["today", "tracker", "sleep", "insights", "shelf"].forEach((t) => {
     const section = document.getElementById("view-" + t);
     if (section) section.hidden = t !== tab;
     const navBtn = document.querySelector(`.bottom-nav-btn[data-tab="${t}"]`);
@@ -536,6 +536,7 @@ function showTab(tab) {
   if (tab === "tracker" && typeof renderTrackerTab === "function") renderTrackerTab();
   if (tab === "sleep" && typeof renderSleepTab === "function") renderSleepTab();
   if (tab === "insights" && typeof renderInsightsTab === "function") renderInsightsTab();
+  if (tab === "shelf" && typeof renderShelfTab === "function") renderShelfTab();
 }
 
 function initWeekNav() {
@@ -828,6 +829,7 @@ initDeleteScopeModal();
 initConfirmModal();
 initSettingsPanel();
 initInsightsNav();
+if (typeof initShelfTab === "function") initShelfTab();
 if (typeof initSyncOnLoad === "function") initSyncOnLoad();
 initServiceWorker();
 initCompactWidgetMode();
