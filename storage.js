@@ -154,6 +154,11 @@ function getState() {
 
   const today = todayKey();
   if (state.date !== today) {
+    // Remember the last date the app was actually open, so carry-over can
+    // catch up on the whole gap (e.g. the app wasn't opened for 3 days) —
+    // not just "yesterday". This naturally self-corrects: a normal
+    // day-to-day gap of 1 still only looks at yesterday, same as before.
+    state.pendingCarryOverFrom = state.date;
     state.history[state.date] = state.entries;
     trimHistory(state.history);
     state.entries = {};
@@ -386,14 +391,18 @@ function endHabitRecurrenceFrom(habitId, date) {
 // or drop it, instead of either losing it silently or having it nag forever.
 
 function getOverdueOnceTasks(state) {
-  // Only exactly yesterday's undone tasks are surfaced — not anything older.
-  // A task left undone for a couple of weeks shouldn't keep getting asked
-  // about; it just sits there unfinished, and the user can still bring it
-  // forward manually (the "Tomorrow" swipe action) whenever they want.
-  const yesterday = addDays(state.date, -1);
+  // Surfaces undone tasks from the *actual gap* since the app was last
+  // opened — normally that's just yesterday, but if the app wasn't opened
+  // for 2-3 days, this catches all of those skipped days at once instead of
+  // only the most recent one. `pendingCarryOverFrom` is set once per real
+  // rollover (see getState()) to the last date the app was open before the
+  // gap, so it naturally resets to "yesterday" for the common one-day case
+  // and doesn't accumulate indefinitely — a task keeps getting surfaced
+  // only within its own gap, not forever.
+  const windowStart = state.pendingCarryOverFrom || addDays(state.date, -1);
   return state.habits.filter((h) => {
     if (!h.schedule || h.schedule.kind !== "once") return false;
-    if (h.schedule.date !== yesterday) return false;
+    if (h.schedule.date < windowStart || h.schedule.date >= state.date) return false;
     if (h.carryOverDismissedDate === state.date) return false; // already answered today
     const entry = state.history[h.schedule.date] && state.history[h.schedule.date][h.id];
     return !isCompleted(h, entry);
