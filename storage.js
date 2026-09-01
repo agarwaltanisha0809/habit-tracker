@@ -289,12 +289,20 @@ function addHabit({ label, emoji, type, schedule, target, unitMl }) {
   // (same millisecond), silently merging two habits' entries — add randomness.
   const id = "habit-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8);
   const color = COLOR_THEME_KEYS[state.habits.length % COLOR_THEME_KEYS.length];
+  const finalSchedule = schedule || { kind: "daily" };
+  // A recurring habit shouldn't retroactively appear on days before it was
+  // created (e.g. adding "Read daily" today shouldn't show up on last
+  // week's heatmap/tracker) — stamp today as its start date. Not applied to
+  // "once" tasks: those already carry their own explicit single date, which
+  // can legitimately be a past date (logging something for yesterday), so a
+  // separate start-date restriction would wrongly block that.
+  if (finalSchedule.kind !== "once") finalSchedule.startDate = todayKey();
   const base = {
     id,
     emoji: emoji || "⭐",
     label,
     color,
-    schedule: schedule || { kind: "daily" },
+    schedule: finalSchedule,
     createdAt: Date.now(),
     excludeFromTracker: null, // null = auto-decide, true/false = manual override
   };
@@ -329,7 +337,15 @@ function updateHabit(habitId, { label, emoji, schedule, target, unitMl }) {
 
   if (label != null) habit.label = label;
   if (emoji != null) habit.emoji = emoji;
-  if (schedule != null) habit.schedule = schedule;
+  if (schedule != null) {
+    // Editing a habit's schedule (e.g. daily -> weekdays) shouldn't reset
+    // its start date — that would make it retroactively reappear on days
+    // before it was ever created, the exact bug this field exists to
+    // prevent. Carry the existing startDate forward unless the new
+    // schedule is "once" (which doesn't use one).
+    const preservedStart = habit.schedule && habit.schedule.startDate;
+    habit.schedule = schedule.kind !== "once" && preservedStart ? { ...schedule, startDate: preservedStart } : schedule;
+  }
   if (habit.type === "counter") {
     if (target != null) {
       habit.target = Math.max(1, target);

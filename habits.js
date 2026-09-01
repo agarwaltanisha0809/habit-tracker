@@ -114,6 +114,12 @@ function isScheduledForDate(habit, dateStr) {
   const schedule = habit.schedule || { kind: "daily" };
   if (schedule.until && dateStr > schedule.until) return false;
   if (schedule.kind === "once") return schedule.date === dateStr;
+  // A recurring habit never applies to a date before it existed — without
+  // this, a habit added today would retroactively show up on last week's
+  // heatmap/tracker just because today happens to be, say, a Monday and the
+  // habit is "weekdays". Habits created before this field existed have no
+  // startDate, so they're unaffected (no retroactive change to old data).
+  if (schedule.startDate && dateStr < schedule.startDate) return false;
   const day = new Date(dateStr + "T00:00:00").getDay();
   if (schedule.kind === "daily") return true;
   if (schedule.kind === "weekdays") return day >= 1 && day <= 5;
