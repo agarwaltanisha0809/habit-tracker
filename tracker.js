@@ -1,16 +1,16 @@
 // Habit Tracker tab: weekly / monthly / yearly grids, one bento card per
-// eligible habit (see storage.js:isTrackerEligible for the auto-include rule).
+// recurring habit (see storage.js:isTrackerEligible — every recurring habit
+// shows regardless of how often it's actually been completed; only one-off
+// tasks are excluded, since they're not a recurring habit at all).
 let trackerViewMode = "weekly";
 let trackerMonthOffset = 0;
 
 function eligibleHabits(state) {
-  const daysMap = getAllDaysMap(state);
-  return ALL_HABITS.filter((h) => isTrackerEligible(h, daysMap, state.date));
+  return ALL_HABITS.filter((h) => isTrackerEligible(h));
 }
 
 function excludedHabitsCount(state) {
-  const daysMap = getAllDaysMap(state);
-  return ALL_HABITS.filter((h) => !isTrackerEligible(h, daysMap, state.date)).length;
+  return ALL_HABITS.filter((h) => !isTrackerEligible(h)).length;
 }
 
 function weekRangeLabel(monday) {

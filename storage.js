@@ -6,9 +6,6 @@
 const STORAGE_KEY = "habitTracker.v4";
 const LEGACY_V3_KEY = "habitTracker.v3";
 const HISTORY_DAYS_CAP = 180;
-const TRACKER_LOOKBACK_DAYS = 30;
-const TRACKER_MIN_COMPLETIONS = 12; // roughly 3x/week over 30 days
-const TRACKER_BOOTSTRAP_DAYS = 14; // new habits stay visible until they have enough history
 
 // Manual backup — a plain JSON export/import independent of Sync, so there's
 // always a way to save your data yourself (e.g. before clearing Safari data,
@@ -539,24 +536,20 @@ function computeLongestStreak(habit, daysMap) {
   return longest;
 }
 
-// Whether a habit should appear in the Habit Tracker tab: manual override
-// wins; otherwise new habits stay visible for a bootstrap window, then need
-// a real completion rate (~3x/week over the last 30 days) to keep showing.
-function isTrackerEligible(habit, daysMap, today) {
+// Whether a habit should appear in the Habit Tracker tab. Previously this
+// required a real completion rate (~3x/week over 30 days) after a bootstrap
+// window, auto-hiding infrequent habits — the user explicitly asked to drop
+// that: every recurring habit they've added should show up in the tracker
+// regardless of how often they've actually completed it. Only "once"
+// one-off tasks are excluded (they're not a recurring habit at all — see
+// storage.js's Habits vs Tasks distinction), and an explicit manual
+// override (excludeFromTracker, currently unused by any UI but left intact
+// in case one is added later) still wins either way.
+function isTrackerEligible(habit) {
   if (habit.excludeFromTracker === true) return false;
   if (habit.excludeFromTracker === false) return true;
   if (habit.schedule && habit.schedule.kind === "once") return false;
-
-  const ageDays = (Date.now() - (habit.createdAt || 0)) / 86400000;
-  if (ageDays < TRACKER_BOOTSTRAP_DAYS) return true;
-
-  let completions = 0;
-  for (let i = 0; i < TRACKER_LOOKBACK_DAYS; i++) {
-    const date = addDays(today, -i);
-    const entries = daysMap[date];
-    if (isCompleted(habit, entries && entries[habit.id])) completions++;
-  }
-  return completions >= TRACKER_MIN_COMPLETIONS;
+  return true;
 }
 
 // Returns [{ date, entries }] for the last n days (oldest first), including today.
