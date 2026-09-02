@@ -659,6 +659,26 @@ button {
   color: var(--tone-muted, var(--muted));
 }
 
+.tracker-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tracker-delete-btn {
+  border: none;
+  background: none;
+  padding: 2px;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.6;
+}
+
+.tracker-delete-btn:active {
+  opacity: 1;
+}
+
 .tracker-perfect-badge {
   display: flex;
   align-items: center;

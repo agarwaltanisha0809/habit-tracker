@@ -66,11 +66,14 @@ function renderTrackerWeekly(state, container) {
         <div class="tracker-card" style="--tone-bg:${t.bg}; --tone-text:${t.text}; --tone-muted:${t.muted}; --tone-accent:${t.accent}; --tone-badge-bg:${t.badgeBg};">
           <div class="tracker-card-header">
             <div class="tracker-habit-name">${habit.emoji} ${habit.label}</div>
-            ${
-              isPerfect
-                ? `<div class="tracker-perfect-badge">🏅 Perfect</div>`
-                : `<div class="tracker-stats">${pct}%</div>`
-            }
+            <div class="tracker-card-actions">
+              ${
+                isPerfect
+                  ? `<div class="tracker-perfect-badge">🏅 Perfect</div>`
+                  : `<div class="tracker-stats">${pct}%</div>`
+              }
+              <button type="button" class="tracker-delete-btn" data-habit="${habit.id}" aria-label="Delete ${habit.label}">🗑️</button>
+            </div>
           </div>
           <div class="tracker-day-grid">${cellsHtml}</div>
         </div>
@@ -172,7 +175,10 @@ function renderTrackerMonthly(state, container) {
         <div class="tracker-card" style="--tone-bg:${t.bg}; --tone-text:${t.text}; --tone-muted:${t.muted}; --tone-accent:${t.accent}; --tone-badge-bg:${t.badgeBg};">
           <div class="tracker-card-header">
             <div class="tracker-habit-name">${habit.emoji} ${habit.label}</div>
-            <div class="tracker-stats">${pct}% · ${doneCount}d</div>
+            <div class="tracker-card-actions">
+              <div class="tracker-stats">${pct}% · ${doneCount}d</div>
+              <button type="button" class="tracker-delete-btn" data-habit="${habit.id}" aria-label="Delete ${habit.label}">🗑️</button>
+            </div>
           </div>
           <div class="tracker-month-grid">${cells.join("")}</div>
         </div>
@@ -225,7 +231,10 @@ function renderTrackerYearly(state, container) {
         <div class="tracker-card" style="--tone-bg:${t.bg}; --tone-text:${t.text}; --tone-muted:${t.muted}; --tone-accent:${t.accent}; --tone-badge-bg:${t.badgeBg};">
           <div class="tracker-card-header">
             <div class="tracker-habit-name">${habit.emoji} ${habit.label}</div>
-            <div class="tracker-stats">${pct}% · ${doneCount}d</div>
+            <div class="tracker-card-actions">
+              <div class="tracker-stats">${pct}% · ${doneCount}d</div>
+              <button type="button" class="tracker-delete-btn" data-habit="${habit.id}" aria-label="Delete ${habit.label}">🗑️</button>
+            </div>
           </div>
           <div class="tracker-year-grid">${cells.join("")}</div>
         </div>
@@ -258,6 +267,16 @@ function renderTrackerTab() {
   if (trackerViewMode === "weekly") renderTrackerWeekly(state, container);
   else if (trackerViewMode === "monthly") renderTrackerMonthly(state, container);
   else renderTrackerYearly(state, container);
+
+  // Delete straight from the tracker card, without needing to go find the
+  // habit on Today first. Reuses the same delete-scope picker (just today /
+  // from today onward / everywhere) that Today's swipe-delete uses.
+  container.querySelectorAll(".tracker-delete-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const habit = getHabits().find((h) => h.id === btn.dataset.habit);
+      if (habit) openDeleteScope(habit, state.date);
+    });
+  });
 
   const footnote = document.getElementById("trackerFootnote");
   const excluded = excludedHabitsCount(state);
