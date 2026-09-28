@@ -478,26 +478,49 @@ function renderToday() {
     const byDone = (a, b) => (isCompleted(a, entries[a.id]) ? 1 : 0) - (isCompleted(b, entries[b.id]) ? 1 : 0);
     const habitTasks = tasks.filter((h) => !h.schedule || h.schedule.kind !== "once").sort(byDone);
     const onceTasks = tasks.filter((h) => h.schedule && h.schedule.kind === "once").sort(byDone);
-    // Check-type habits render as a compact chip row (tap to toggle); counter
-    // habits (e.g. water) keep the full card since they need +/- controls.
-    const checkHabits = habitTasks.filter((h) => h.type !== "counter");
-    const counterHabits = habitTasks.filter((h) => h.type === "counter");
-
+    // Habits split into three tinted panels — Self-care, Productivity, and a
+    // plain untinted Other for anything uncategorized (habits added before
+    // categories existed, or left uncategorized on purpose). Each panel is
+    // its own self-contained group: header + streak badge, chip row for
+    // check-type habits, full cards for counter habits (e.g. water) below.
     if (habitTasks.length) {
       const daysMap = getAllDaysMap(state);
-      const bestStreak = habitTasks.reduce((max, h) => Math.max(max, computeCurrentStreak(h, daysMap, selectedDate)), 0);
-      const header = document.createElement("div");
-      header.className = "task-group-label";
-      header.innerHTML = `Habits${bestStreak > 0 ? ` <span class="group-stat">🔥 ${bestStreak}</span>` : ""}`;
-      listEl.appendChild(header);
+      const categoryDefs = [
+        { key: "Self-care", cls: "habit-category-selfcare" },
+        { key: "Productivity", cls: "habit-category-productivity" },
+        { key: "Other", cls: "habit-category-other" },
+      ];
+      const byCategory = { "Self-care": [], Productivity: [], Other: [] };
+      habitTasks.forEach((h) => {
+        const cat = h.category === "Self-care" || h.category === "Productivity" ? h.category : "Other";
+        byCategory[cat].push(h);
+      });
 
-      if (checkHabits.length) {
-        const row = document.createElement("div");
-        row.className = "habit-chip-row";
-        checkHabits.forEach((habit) => row.appendChild(renderHabitChip(habit, entries[habit.id], selectedDate)));
-        listEl.appendChild(row);
-      }
-      counterHabits.forEach((habit) => listEl.appendChild(renderCounterCard(habit, entries[habit.id], selectedDate)));
+      categoryDefs
+        .filter((def) => byCategory[def.key].length)
+        .forEach((def) => {
+          const group = byCategory[def.key];
+          const streak = group.reduce((max, h) => Math.max(max, computeCurrentStreak(h, daysMap, selectedDate)), 0);
+          const panel = document.createElement("div");
+          panel.className = `habit-category-panel ${def.cls}`;
+
+          const header = document.createElement("div");
+          header.className = "habit-category-header";
+          header.innerHTML = `${def.key}${streak > 0 ? ` <span class="group-stat">🔥 ${streak}</span>` : ""}`;
+          panel.appendChild(header);
+
+          const checkHabits = group.filter((h) => h.type !== "counter");
+          const counterHabits = group.filter((h) => h.type === "counter");
+          if (checkHabits.length) {
+            const row = document.createElement("div");
+            row.className = "habit-chip-row";
+            checkHabits.forEach((habit) => row.appendChild(renderHabitChip(habit, entries[habit.id], selectedDate)));
+            panel.appendChild(row);
+          }
+          counterHabits.forEach((habit) => panel.appendChild(renderCounterCard(habit, entries[habit.id], selectedDate)));
+
+          listEl.appendChild(panel);
+        });
     }
 
     if (onceTasks.length) {

@@ -280,7 +280,7 @@ function setEntryForDate(date, habitId, patch) {
 
 // --- Habits ---
 
-function addHabit({ label, emoji, type, schedule, target, unitMl }) {
+function addHabit({ label, emoji, type, schedule, target, unitMl, category }) {
   const state = getState();
   // Date.now() alone can collide when habits are created in fast succession
   // (same millisecond), silently merging two habits' entries — add randomness.
@@ -302,6 +302,10 @@ function addHabit({ label, emoji, type, schedule, target, unitMl }) {
     schedule: finalSchedule,
     createdAt: Date.now(),
     excludeFromTracker: null, // null = auto-decide, true/false = manual override
+    // "Self-care" | "Productivity" | null (uncategorized — renders in a
+    // plain, untinted "Other" group on Today). Only meaningful for
+    // recurring habits, not "once" tasks.
+    category: finalSchedule.kind !== "once" ? category || null : null,
   };
   const habit =
     type === "counter"
@@ -327,13 +331,14 @@ function addHabit({ label, emoji, type, schedule, target, unitMl }) {
 
 // Edits an existing habit in place (name, emoji, schedule, target) without
 // touching its id, color, or any past entries/history.
-function updateHabit(habitId, { label, emoji, schedule, target, unitMl }) {
+function updateHabit(habitId, { label, emoji, schedule, target, unitMl, category }) {
   const state = getState();
   const habit = state.habits.find((h) => h.id === habitId);
   if (!habit) return state;
 
   if (label != null) habit.label = label;
   if (emoji != null) habit.emoji = emoji;
+  if (category !== undefined) habit.category = category || null;
   if (schedule != null) {
     // Editing a habit's schedule (e.g. daily -> weekdays) shouldn't reset
     // its start date — that would make it retroactively reappear on days

@@ -12,6 +12,10 @@
   --accent-ink: #faece7;
   --shadow: none;
   --radius: 18px;
+  --selfcare-bg: #1c1410;
+  --selfcare-text: #e0a479;
+  --productivity-bg: #10151f;
+  --productivity-text: #8fb3f0;
 }
 
 [data-theme="light"] {
@@ -26,6 +30,10 @@
   --ring-bg: #ece3d3;
   --accent: #d85a30;
   --accent-ink: #4a1b0c;
+  --selfcare-bg: #f9efe6;
+  --selfcare-text: #8a5a3c;
+  --productivity-bg: #eef4fc;
+  --productivity-text: #3a68a8;
 }
 
 * {
@@ -1563,6 +1571,61 @@ body.compact-widget .task-note-input {
   font-size: 11px;
   color: var(--muted-2);
   margin-left: 4px;
+}
+
+/* Habit category panels: habits split into Self-care / Productivity (plus
+   a plain, untinted "Other" for habits added before categories existed, or
+   left uncategorized) — each gets its own soft tinted background so the two
+   read as distinct sections, not just another header line. */
+.habit-category-panel {
+  border-radius: 14px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+}
+
+.habit-category-selfcare {
+  background: var(--selfcare-bg);
+}
+
+.habit-category-productivity {
+  background: var(--productivity-bg);
+}
+
+.habit-category-other {
+  background: transparent;
+  padding: 0;
+}
+
+.habit-category-header {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.habit-category-selfcare .habit-category-header {
+  color: var(--selfcare-text);
+}
+
+.habit-category-productivity .habit-category-header {
+  color: var(--productivity-text);
+}
+
+.habit-category-other .habit-category-header {
+  color: var(--faint);
+}
+
+.habit-category-panel .habit-chip-row,
+.habit-category-panel .bento-card {
+  margin-bottom: 0;
+}
+
+.habit-category-panel .bento-card + .bento-card,
+.habit-category-panel .habit-chip-row + .bento-card {
+  margin-top: 7px;
 }
 
 /* Compact habit chips: habits are the steady, ongoing set, so they don't

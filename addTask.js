@@ -50,6 +50,10 @@ function renderScheduleOptions() {
     });
   });
   renderWeekdayPicker();
+  // Category (Self-care / Productivity) only makes sense for a recurring
+  // habit, not a one-off "once" task — hide it entirely for that case.
+  const categoryField = document.getElementById("categoryField");
+  if (categoryField) categoryField.hidden = selectedScheduleKind === "once";
 }
 
 function renderWeekdayPicker() {
@@ -95,6 +99,7 @@ function openAddTaskModal(prefill) {
   document.getElementById("targetField").hidden = true;
   document.getElementById("liquidField").hidden = true;
   document.getElementById("newTaskIsLiquid").checked = false;
+  document.getElementById("newTaskCategory").value = "";
   if (prefill && prefill.label) document.getElementById("newTaskLabel").value = prefill.label;
   setModalMode(false);
   renderScheduleOptions();
@@ -121,6 +126,7 @@ function openEditTaskModal(habit, date) {
   document.getElementById("newTaskIsLiquid").checked = isLiquid;
   document.getElementById("liquidField").hidden = !isLiquid;
   document.getElementById("newTaskUnitMl").value = habit.unitMl || 250;
+  document.getElementById("newTaskCategory").value = habit.category || "";
 
   setModalMode(true);
   renderScheduleOptions();
@@ -178,11 +184,12 @@ function initAddTask() {
     } else {
       schedule = { kind: selectedScheduleKind };
     }
+    const category = document.getElementById("newTaskCategory").value || null;
 
     if (editingHabitId) {
-      updateHabit(editingHabitId, { label, emoji: selectedEmoji, schedule, target, unitMl });
+      updateHabit(editingHabitId, { label, emoji: selectedEmoji, schedule, target, unitMl, category });
     } else {
-      addHabit({ label, emoji: selectedEmoji, type, schedule, target, unitMl });
+      addHabit({ label, emoji: selectedEmoji, type, schedule, target, unitMl, category });
       // Promoting a Shelf item creates the real habit/task above, then
       // removes the "someday" placeholder — the shelf itself never knew
       // what it became, it's just gone once promoted.
