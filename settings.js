@@ -19,7 +19,9 @@ function renderHabitsList() {
   const el = document.getElementById("habitsList");
   if (!el) return;
   const state = getState();
-  const removable = state.habits.filter((h) => h.type !== "sleep");
+  // Recurring habits only — one-off "once" tasks pile up here fast and
+  // aren't "habits"; they're deleted from the Today screen's swipe actions.
+  const removable = state.habits.filter((h) => h.type !== "sleep" && !(h.schedule && h.schedule.kind === "once"));
   const chips = removable
     .map((h) => {
       const t = themeFor(h);
