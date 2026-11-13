@@ -1693,3 +1693,14 @@ body.compact-widget .task-note-input {
   height: 18px;
   flex-shrink: 0;
 }
+
+/* Shown only while local changes are waiting to reach Firestore. */
+.sync-status {
+  border: none;
+  background: color-mix(in srgb, #ef9f27 22%, var(--card-bg));
+  color: #fac775;
+  font-size: 11px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  cursor: pointer;
+}
